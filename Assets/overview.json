@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "amine.com",
+    "Replicas": 1,
+    "Hosts": [
+      {
+        "Hostname": "control-plane",
+        "CPU": "2.3",
+        "Memory": "762/11705 MB",
+        "MemoryPercent": 6.51,
+        "ExternalPort": "8080"
+      }
+    ]
+  }
+]

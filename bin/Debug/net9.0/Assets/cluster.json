@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "username": "neo",
+    "password": "0000"
+  },
+  "members": [
+    {
+      "hostname": "control-plane",
+      "role": "controller"
+    },
+    {
+      "hostname": "node1",
+      "role": "worker"
+    }
+  ]
+}
