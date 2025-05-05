@@ -3,10 +3,10 @@
     "Hostname": "control-plane",
     "Role": null,
     "MachineStats": {
-      "Cpu": 14,
+      "Cpu": 9.3,
       "Memory": {
-        "Value": "6,5%",
-        "percentage": 6.5
+        "Value": "6,6%",
+        "percentage": 6.6
       },
       "Disk": {
         "Value": "7%",
@@ -18,7 +18,7 @@
         "Name": "amine.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "5.348MiB / 11.43GiB",
+          "Value": "5.449MiB / 11.43GiB",
           "percentage": 0.05
         },
         "Disk": {
@@ -33,10 +33,10 @@
     "Hostname": "node1",
     "Role": null,
     "MachineStats": {
-      "Cpu": 2.3,
+      "Cpu": 7.1,
       "Memory": {
-        "Value": "6,4%",
-        "percentage": 6.4
+        "Value": "6,5%",
+        "percentage": 6.5
       },
       "Disk": {
         "Value": "6%",
@@ -48,7 +48,7 @@
         "Name": "amina.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "3.297MiB / 11.43GiB",
+          "Value": "3.418MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {
@@ -61,7 +61,7 @@
         "Name": "amine.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "5.078MiB / 11.43GiB",
+          "Value": "5.02MiB / 11.43GiB",
           "percentage": 0.04
         },
         "Disk": {

@@ -255,7 +255,7 @@ app.MapGet("/dashboard", (ClusterOverviewService overviewService) =>
                 <h2>Machines</h2>
             </div>
             {(overview?.Machines != null ? string.Join("", overview.Machines.Select(machine => $@"
-            <div class='col-md-2 mb-3'>
+            <div class='col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3'>
                 <div class='card bg-dark-subtle shadow-sm machine-card'>
                     <div class='card-body'>
                         <h5 class='card-title'>{machine.Hostname}</h5>
@@ -283,7 +283,7 @@ app.MapGet("/dashboard", (ClusterOverviewService overviewService) =>
                 <h2>Containers</h2>
             </div>
             {(overview?.Containers != null ? string.Join("", overview.Containers.Select(container => $@"
-            <div class='col-md-2 mb-3'>
+            <div class='col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3'>
                 <div class='card bg-dark-subtle shadow-sm container-card'>
                     <div class='card-body'>
                         <h5 class='card-title'>{container.Name}</h5>
