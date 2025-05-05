@@ -1,30 +1,21 @@
-using System.Text.Json;
+using ClusterSharp.Api.Helpers;
 
-namespace ClusterSharp.Proxy;
+namespace ClusterSharp.Api.Models.Cluster;
 
 public class ClusterOverviewService
 {
     public List<ClusterOverview> Overview { get; private set; } = new();
-    private readonly string _overviewFilePath;
     
-    public ClusterOverviewService(string overviewFile)
+    public ClusterOverviewService()
     {
-        _overviewFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", overviewFile);
         LoadOverview();
     }
     
     private void LoadOverview()
     {
-        if (!File.Exists(_overviewFilePath))
-        {
-            Console.WriteLine($"Overview file not found: {_overviewFilePath}");
-            return;
-        }
-        
         try
         {
-            var jsonContent = File.ReadAllText(_overviewFilePath);
-            var result = JsonSerializer.Deserialize<List<ClusterOverview>>(jsonContent);
+            var result = FileHelper.GetContentFromFile<List<ClusterOverview>>("Assets/overview.json", out var errorMessage);
             if (result != null)
             {
                 Overview = result;
@@ -37,15 +28,3 @@ public class ClusterOverviewService
         }
     }
 }
-
-public class ClusterOverview
-{
-    public string Name { get; set; } = string.Empty;
-    public List<ClusterHost> Hosts { get; set; } = new();
-}
-
-public class ClusterHost
-{
-    public string Hostname { get; set; } = string.Empty;
-    public int ExternalPort { get; set; }
-} 

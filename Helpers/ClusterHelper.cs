@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ClusterSharp.Api.Models;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterNode = ClusterSharp.Api.Models.Cluster.ClusterNode;
@@ -7,14 +6,6 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class ClusterHelper
 {
-    public static List<ClusterNode>? GetClusterInfo()
-    {
-        var result = FileHelper.GetContentFromFile<List<ClusterNode>>("Assets/cluster-info.json", out var errorMessage);
-        if(result == null)
-            Console.WriteLine(errorMessage);
-        return result;
-    }
-    
     public static ClusterSetup? GetClusterSetup()
     {
         var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);;
@@ -25,20 +16,29 @@ public static class ClusterHelper
 
     public static List<string> GetWorkers()
     {
-        var clusterInfo = GetClusterInfo();
-        return clusterInfo?.Where(m => m.Role == Constants.Worker)
-            .OrderBy(x => x.MachineStats.CPU)
-            .ThenBy(x => x.MachineStats.Memory.Percentage)
-            .Select(m => m.Hostname).ToList() ?? [];
+        var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);
+        if (result == null)
+        {
+            Console.WriteLine(errorMessage);
+            return [];
+        }
+
+        return result.Members.Where(m => m.Role == Constants.Worker)
+            .Select(x => x.Hostname)
+            .ToList();
+
     }
 
     public static void GenerateClusterOverview(string clusterInfoPath)
     {
-        var clusterInfoJson = File.ReadAllText(clusterInfoPath);
-        var clusterInfo = JsonSerializer.Deserialize<List<ClusterNode>>(clusterInfoJson);
-        if (clusterInfo == null) return;
+        var clusterInfo = FileHelper.GetContentFromFile<List<ClusterNode>>(clusterInfoPath, out var errorMessage);
+        if (clusterInfo == null)
+        {
+            Console.WriteLine(errorMessage);
+            return;
+        }
 
-        var containerMap = new Dictionary<string, List<(string Hostname, Models.MachineStats MachineStats)>>();
+        var containerMap = new Dictionary<string, List<(string Hostname, MachineStats MachineStats)>>();
         foreach (var node in clusterInfo)
         {
             foreach (var container in node.Containers)
@@ -73,7 +73,7 @@ public static class ClusterHelper
             });
         }
         
-        FileHelper.SetContentToFile("Assets/overview.json", overview, out var errorMessage);
+        FileHelper.SetContentToFile("Assets/overview.json", overview, out errorMessage);
         if (errorMessage != null)
             Console.WriteLine($"Error writing overview to file: {errorMessage}");
     }

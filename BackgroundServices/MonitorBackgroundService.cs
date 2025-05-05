@@ -53,13 +53,13 @@ public class MonitorBackgroundService : BackgroundService
                 if (errorMessage != null)
                     Console.WriteLine($"Error writing cluster info to file: {errorMessage}");
                 else 
-                    ClusterHelper.GenerateClusterOverview("Assets/cluster_info.json");
+                    ClusterHelper.GenerateClusterOverview("Assets/cluster-info.json");
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }
 }

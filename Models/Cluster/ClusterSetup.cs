@@ -4,7 +4,7 @@ namespace ClusterSharp.Api.Models.Cluster;
 
 public class ClusterSetup
 {
-    [JsonPropertyName("cluster")]
+    [JsonPropertyName("admin")]
     public Admin Admin { get; set; }
     
     [JsonPropertyName("members")]

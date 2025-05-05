@@ -1,6 +1,5 @@
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/appsettings.json
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/cluster.json
-/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/cluster_info.json
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/deploy-commands.json
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/overview.json
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/ClusterSharp.Api.staticwebassets.endpoints.json
@@ -13,6 +12,11 @@
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Microsoft.AspNetCore.OpenApi.dll
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Microsoft.OpenApi.dll
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Renci.SshNet.dll
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.Swagger.dll
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.SwaggerGen.dll
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.SwaggerUI.dll
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/System.IO.Hashing.dll
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Yarp.ReverseProxy.dll
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ClusterSharp.Api.csproj.AssemblyReference.cache
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ClusterSharp.Api.GeneratedMSBuildEditorConfig.editorconfig
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ClusterSharp.Api.AssemblyInfoInputs.cache
@@ -36,7 +40,5 @@
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ClusterSharp.Api.pdb
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ClusterSharp.Api.genruntimeconfig.cache
 /Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/obj/Debug/net9.0/ref/ClusterSharp.Api.dll
-/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.Swagger.dll
-/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.SwaggerGen.dll
-/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Swashbuckle.AspNetCore.SwaggerUI.dll
-/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/setup-machine-commands.json
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/refresh-cluster-setup-commands.json
+/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/bin/Debug/net9.0/Assets/cluster-info.json

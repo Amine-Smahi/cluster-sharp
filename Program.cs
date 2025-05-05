@@ -5,7 +5,7 @@ using Yarp.ReverseProxy.Configuration;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using System.Runtime;
-using ClusterSharp.Proxy;
+using ClusterSharp.Api.Models.Cluster;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,7 +59,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton(_ => new ClusterOverviewService("Assets/overview.json"));
+builder.Services.AddSingleton(_ => new ClusterOverviewService());
 
 builder.Services.AddHostedService<MonitorBackgroundService>();
 builder.Services.AddHostedService<UpdateBackgroundService>();
@@ -89,10 +89,21 @@ builder.Services.AddReverseProxy()
         }
     });
 
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        TimeoutStatusCode = StatusCodes.Status504GatewayTimeout
+    };
+});
+
 var app = builder.Build();
 
 app.UseRouting();
+
 app.UseRequestTimeouts();
+
 app.UseResponseCompression();
 app.UseResponseCaching();
 

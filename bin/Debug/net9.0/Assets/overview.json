@@ -4,10 +4,10 @@
     "Replicas": 1,
     "Hosts": [
       {
-        "Hostname": "control-plane",
-        "CPU": "2.3",
-        "Memory": "762/11705 MB",
-        "MemoryPercent": 6.51,
+        "Hostname": "node1",
+        "CPU": "2.4",
+        "Memory": "717/11705 MB",
+        "MemoryPercent": 613,
         "ExternalPort": "8080"
       }
     ]

@@ -1,32 +1,16 @@
 [
   {
     "Hostname": "node1",
-    "Role": "worker",
+    "Role": null,
     "MachineStats": {
-      "CPU": "",
+      "CPU": "2.4",
       "Memory": {
-        "value": "",
-        "percentage": 0
+        "Value": "709/11705 MB",
+        "percentage": 606
       },
       "Disk": {
-        "value": "",
-        "percentage": 0
-      }
-    },
-    "Containers": []
-  },
-  {
-    "Hostname": "control-plane",
-    "Role": "controller",
-    "MachineStats": {
-      "CPU": "2.3",
-      "Memory": {
-        "value": "762/11705 MB",
-        "percentage": 6.51
-      },
-      "Disk": {
-        "value": "15G/233G",
-        "percentage": 7
+        "Value": "12G/233G",
+        "percentage": 6
       }
     },
     "Containers": [
@@ -34,11 +18,11 @@
         "Name": "amine.com",
         "CPU": "0.00%",
         "Memory": {
-          "value": "5.211MiB / 11.43GiB",
-          "percentage": 0.04
+          "Value": "6.477MiB / 11.43GiB",
+          "percentage": 0.06
         },
         "Disk": {
-          "value": "0B / 0B",
+          "Value": "4.24MB / 0B",
           "percentage": 0
         },
         "external_port": "8080"

@@ -1,4 +1,4 @@
-using ClusterSharp.Proxy;
+using ClusterSharp.Api.Models.Cluster;
 using Microsoft.Extensions.DependencyInjection;
 using Yarp.ReverseProxy.Configuration;
 
