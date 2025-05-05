@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "0V8OQZYDpmY=",
+  "dgSpecHash": "nRj5f4SXXNs=",
   "success": true,
   "projectFilePath": "/Users/amine-smahi/RiderProjects/ClusterSharp/ClusterSharp.Api/ClusterSharp.Api.csproj",
   "expectedPackageFiles": [
@@ -14,7 +14,9 @@
     "/Users/amine-smahi/.nuget/packages/swashbuckle.aspnetcore/8.1.1/swashbuckle.aspnetcore.8.1.1.nupkg.sha512",
     "/Users/amine-smahi/.nuget/packages/swashbuckle.aspnetcore.swagger/8.1.1/swashbuckle.aspnetcore.swagger.8.1.1.nupkg.sha512",
     "/Users/amine-smahi/.nuget/packages/swashbuckle.aspnetcore.swaggergen/8.1.1/swashbuckle.aspnetcore.swaggergen.8.1.1.nupkg.sha512",
-    "/Users/amine-smahi/.nuget/packages/swashbuckle.aspnetcore.swaggerui/8.1.1/swashbuckle.aspnetcore.swaggerui.8.1.1.nupkg.sha512"
+    "/Users/amine-smahi/.nuget/packages/swashbuckle.aspnetcore.swaggerui/8.1.1/swashbuckle.aspnetcore.swaggerui.8.1.1.nupkg.sha512",
+    "/Users/amine-smahi/.nuget/packages/system.io.hashing/7.0.0/system.io.hashing.7.0.0.nupkg.sha512",
+    "/Users/amine-smahi/.nuget/packages/yarp.reverseproxy/2.1.0/yarp.reverseproxy.2.1.0.nupkg.sha512"
   ],
   "logs": []
 }

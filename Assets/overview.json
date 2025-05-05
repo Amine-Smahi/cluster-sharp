@@ -1,14 +1,23 @@
 [
   {
-    "Name": "amine.com",
-    "Replicas": 1,
-    "Hosts": [
+    "name": "app1",
+    "hosts": [
       {
-        "Hostname": "control-plane",
-        "CPU": "2.3",
-        "Memory": "762/11705 MB",
-        "MemoryPercent": 6.51,
-        "ExternalPort": "8080"
+        "hostname": "worker1",
+        "externalPort": 5000
+      },
+      {
+        "hostname": "worker2",
+        "externalPort": 5000
+      }
+    ]
+  },
+  {
+    "name": "app2",
+    "hosts": [
+      {
+        "hostname": "worker3",
+        "externalPort": 5001
       }
     ]
   }

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ClusterSharp.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6e42d14ebe6e230c1690877f4e75c1cef27ea285")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+51d2bea8e75cab7c19b138a0bc1c0da1c4573f46")]
 [assembly: System.Reflection.AssemblyProductAttribute("ClusterSharp.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ClusterSharp.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
