@@ -6,9 +6,19 @@ public class ClusterOverviewService
 {
     public List<ClusterOverview> Overview { get; private set; } = new();
     
+    // Event that will be triggered when the overview is updated
+    public event EventHandler? OverviewUpdated;
+    
     public ClusterOverviewService()
     {
         LoadOverview();
+    }
+    
+    public void UpdateOverview()
+    {
+        LoadOverview();
+        // Trigger the event
+        OverviewUpdated?.Invoke(this, EventArgs.Empty);
     }
     
     private void LoadOverview()

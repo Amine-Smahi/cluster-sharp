@@ -6,6 +6,24 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class YarpHelper
 {
+    private static WebApplication? _app;
+
+    public static void SetupYarpRouteUpdates(WebApplication app, ClusterOverviewService overviewService)
+    {
+        _app = app;
+        overviewService.OverviewUpdated += OnOverviewUpdated;
+        UpdateYarpRoutes(app);
+    }
+    
+    private static void OnOverviewUpdated(object? sender, EventArgs e)
+    {
+        if (_app != null)
+        {
+            UpdateYarpRoutes(_app);
+            Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss}");
+        }
+    }
+
     public static void UpdateYarpRoutes(WebApplication application)
     {
         var overviewService = application.Services.GetRequiredService<ClusterOverviewService>();

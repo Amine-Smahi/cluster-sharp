@@ -17,7 +17,6 @@
       <None Include="Assets\cluster.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Include="Assets\cluster_info.json" />
       <None Include="Assets\deploy-commands.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>

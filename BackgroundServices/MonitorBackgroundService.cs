@@ -6,6 +6,13 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class MonitorBackgroundService : BackgroundService
 {
+    private readonly ClusterOverviewService _clusterOverviewService;
+
+    public MonitorBackgroundService(ClusterOverviewService clusterOverviewService)
+    {
+        _clusterOverviewService = clusterOverviewService;
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -17,33 +24,36 @@ public class MonitorBackgroundService : BackgroundService
                 foreach (var worker in workers)
                 {
                     var machineStats = SshHelper.GetMachineStats(worker);
-                    if(machineStats == null)
+                    if (machineStats == null)
                     {
                         Console.WriteLine($"Error retrieving machine stats for {worker}");
                         continue;
                     }
-                    
+
                     var containers = SshHelper.GetDockerContainerStats(worker);
-                    if(containers == null)
+                    if (containers == null)
                     {
                         Console.WriteLine($"Error retrieving container stats for {worker}");
                         continue;
                     }
-                    
+
                     clusterInfo.Add(new ClusterNode
                     {
                         Hostname = worker,
                         MachineStats = new MachineStats
                         {
                             CPU = machineStats.CPU,
-                            Memory = new MemStat { Value = machineStats.Memory.Value, Percentage = machineStats.Memory.Percentage },
-                            Disk = new DiskStat { Value = machineStats.Disk.Value, Percentage = machineStats.Disk.Percentage }
+                            Memory = new MemStat
+                                { Value = machineStats.Memory.Value, Percentage = machineStats.Memory.Percentage },
+                            Disk = new DiskStat
+                                { Value = machineStats.Disk.Value, Percentage = machineStats.Disk.Percentage }
                         },
-                        Containers = containers.Select(c => new ContainerInfo{
+                        Containers = containers.Select(c => new ContainerInfo
+                        {
                             Name = c.Name,
                             CPU = c.CPU,
-                            Memory = new MemStat{ Value = c.Memory.Value, Percentage = c.Memory.Percentage },
-                            Disk = new DiskStat{ Value = c.Disk.Value, Percentage = c.Disk.Percentage },
+                            Memory = new MemStat { Value = c.Memory.Value, Percentage = c.Memory.Percentage },
+                            Disk = new DiskStat { Value = c.Disk.Value, Percentage = c.Disk.Percentage },
                             ExternalPort = c.ExternalPort
                         }).ToList()
                     });
@@ -51,14 +61,19 @@ public class MonitorBackgroundService : BackgroundService
 
                 FileHelper.SetContentToFile("Assets/cluster-info.json", clusterInfo, out var errorMessage);
                 if (errorMessage != null)
+                {
                     Console.WriteLine($"Error writing cluster info to file: {errorMessage}");
-                else 
-                    ClusterHelper.GenerateClusterOverview("Assets/cluster-info.json");
+                    return;
+                }
+
+                ClusterHelper.GenerateClusterOverview("Assets/cluster-info.json");
+                _clusterOverviewService.UpdateOverview();
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
+
             await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }

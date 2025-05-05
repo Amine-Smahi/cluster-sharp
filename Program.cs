@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using System.Runtime;
 using ClusterSharp.Api.Models.Cluster;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -163,12 +164,22 @@ app.MapGet("/cluster/deploy/{replicas:int}", (HttpContext ctx, int replicas) =>
     return Results.Ok();
 }).WithName("deploy");
 
+app.MapGet("/cluster/overview", (ClusterOverviewService overviewService) =>
+{
+    var overview = overviewService.Overview;
+    return Results.Ok(overview);
+}).WithName("overview");
+
+
+
 app.MapOpenApi();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
-YarpHelper.UpdateYarpRoutes(app);
+var overviewService = app.Services.GetRequiredService<ClusterOverviewService>();
+YarpHelper.SetupYarpRouteUpdates(app, overviewService);
+
 app.MapReverseProxy();
 
 app.Run("http://0.0.0.0:80");
