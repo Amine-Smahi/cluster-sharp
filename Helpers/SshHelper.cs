@@ -1,3 +1,4 @@
+using System.Globalization;
 using Renci.SshNet;
 using ClusterSharp.Api.Models;
 
@@ -120,7 +121,7 @@ public static class SshHelper
                 if (colonIdx >= 0 && colonIdx < left.Length - 1)
                 {
                     var hostPort = left.Substring(colonIdx + 1);
-                    if (int.TryParse(hostPort, out _))
+                    if (int.TryParse(hostPort,  CultureInfo.InvariantCulture, out _))
                         return hostPort;
                 }
             }
@@ -238,7 +239,8 @@ public static class SshHelper
             using (var cmd = client.CreateCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"))
             {
                 cmd.Execute();
-                stats.CPU = cmd.Result.Trim();
+                var result = cmd.Result.Trim();
+                stats.CPU = double.TryParse(result, CultureInfo.InvariantCulture, out var o) ? o : 0;
             }
 
             using (var cmd = client.CreateCommand("free -m | awk 'NR==2{printf \"%s/%s MB (%.2f%%)\", $3,$2,$3*100/$2 }'"))
@@ -253,7 +255,7 @@ public static class SshHelper
                 {
                     valuePart = memStr.Substring(0, percentStart).Trim();
                     var percentStr = memStr.Substring(percentStart + 1, percentEnd - percentStart - 2).Replace("%", "");
-                    if (double.TryParse(percentStr, out percent))
+                    if (double.TryParse(percentStr, CultureInfo.InvariantCulture, out percent))
                         percent = Math.Round(percent, 2);
                     else
                         percent = 0;
@@ -273,7 +275,7 @@ public static class SshHelper
                 {
                     valuePart = diskStr.Substring(0, percentStart).Trim();
                     var percentStr = diskStr.Substring(percentStart + 1, percentEnd - percentStart - 2).Replace("%", "");
-                    if (double.TryParse(percentStr, out percent))
+                    if (double.TryParse(percentStr, CultureInfo.InvariantCulture, out percent))
                         percent = Math.Round(percent, 2);
                     else
                         percent = 0;

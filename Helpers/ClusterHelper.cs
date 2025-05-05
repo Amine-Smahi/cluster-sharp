@@ -53,7 +53,7 @@ public static class ClusterHelper
         foreach (var (containerName, hosts) in containerMap)
         {
             var orderedHosts = hosts
-                .OrderBy(h => double.Parse(h.MachineStats.CPU))
+                .OrderBy(h => h.MachineStats.CPU)
                 .ThenBy(h => h.MachineStats.Memory.Percentage)
                 .ToList();
             

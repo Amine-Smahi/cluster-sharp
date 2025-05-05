@@ -10,7 +10,7 @@ public class ClusterOverview
 public class HostInfo
 {
     public string Hostname { get; set; }
-    public string CPU { get; set; }
+    public double CPU { get; set; }
     public string Memory { get; set; }
     public double MemoryPercent { get; set; }
     public string ExternalPort { get; set; }

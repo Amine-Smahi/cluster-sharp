@@ -7,6 +7,9 @@ using System.IO.Compression;
 using System.Runtime;
 using ClusterSharp.Api.Models.Cluster;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.FileProviders;
+using ClusterSharp.Api.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,15 +51,9 @@ builder.Services.AddResponseCompression(options =>
         ["application/json", "application/xml", "text/plain"]);
 });
 
-builder.Services.Configure<BrotliCompressionProviderOptions>(options => 
-{
-    options.Level = CompressionLevel.Fastest;
-});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options => { options.Level = CompressionLevel.Fastest; });
 
-builder.Services.Configure<GzipCompressionProviderOptions>(options => 
-{
-    options.Level = CompressionLevel.Fastest;
-});
+builder.Services.Configure<GzipCompressionProviderOptions>(options => { options.Level = CompressionLevel.Fastest; });
 
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
@@ -90,20 +87,9 @@ builder.Services.AddReverseProxy()
         }
     });
 
-builder.Services.AddRequestTimeouts(options =>
-{
-    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
-    {
-        Timeout = TimeSpan.FromSeconds(30),
-        TimeoutStatusCode = StatusCodes.Status504GatewayTimeout
-    };
-});
-
 var app = builder.Build();
 
 app.UseRouting();
-
-app.UseRequestTimeouts();
 
 app.UseResponseCompression();
 app.UseResponseCaching();
@@ -112,14 +98,14 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.Remove("Server");
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    
+
     var path = context.Request.Path.ToString().ToLowerInvariant();
-    if (path.EndsWith(".js") || path.EndsWith(".css") || path.EndsWith(".jpg") || 
+    if (path.EndsWith(".js") || path.EndsWith(".css") || path.EndsWith(".jpg") ||
         path.EndsWith(".png") || path.EndsWith(".gif") || path.EndsWith(".woff2"))
     {
         context.Response.Headers["Cache-Control"] = "public,max-age=86400";
     }
-    
+
     await next.Invoke();
 });
 
@@ -127,9 +113,9 @@ app.UseHttpsRedirection();
 
 app.MapGet("/cluster/sync", (HttpContext ctx) =>
 {
-    if(!GithubHelper.IsValidSource(ctx.Request.Host.Value!))
+    if (!GithubHelper.IsValidSource(ctx.Request.Host.Value!))
         return Results.Unauthorized();
-        
+
     var results = SshHelper.ExecuteControllerCommands(CommandHelper.GetClusterUpdateCommands());
     return results?.Any(x => x.Status == Constants.NotOk) ?? true
         ? Results.BadRequest(results)
@@ -138,20 +124,20 @@ app.MapGet("/cluster/sync", (HttpContext ctx) =>
 
 app.MapGet("/cluster/deploy/{replicas:int}", (HttpContext ctx, int replicas) =>
 {
-    if(!GithubHelper.IsValidSource(ctx.Request.Host.Value!))
+    if (!GithubHelper.IsValidSource(ctx.Request.Host.Value!))
         return Results.Unauthorized();
-        
-    if(replicas == 0)
+
+    if (replicas == 0)
         return Results.BadRequest("Replicas must be greater than 0");
-        
+
     var workers = ClusterHelper.GetWorkers();
-        
+
     if (workers.Count == 0)
         return Results.BadRequest("No workers found");
-        
+
     if (replicas > workers.Count)
         return Results.BadRequest($"Not enough workers available. {workers.Count} available, {replicas} requested.");
-        
+
     workers = workers.Take(replicas).ToList();
 
     var repo = GithubHelper.GetRepoName(ctx.Request.Host.Value!);
@@ -161,6 +147,7 @@ app.MapGet("/cluster/deploy/{replicas:int}", (HttpContext ctx, int replicas) =>
         if (results?.Any(x => x.Status == Constants.NotOk) ?? true)
             return Results.BadRequest(results);
     }
+
     return Results.Ok();
 }).WithName("deploy");
 
@@ -170,7 +157,129 @@ app.MapGet("/cluster/overview", (ClusterOverviewService overviewService) =>
     return Results.Ok(overview);
 }).WithName("overview");
 
+app.MapGet("/dashboard", (ClusterOverviewService overviewService, HttpContext context) =>
+{
+    // Set content type to HTML
+    context.Response.ContentType = "text/html";
 
+    string dashboardHtml = $@"
+<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>ClusterSharp Dashboard</title>
+    <link href=""https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"" rel=""stylesheet"">
+    <script src=""https://unpkg.com/htmx.org@1.9.10""></script>
+    <style>
+        .progress-bar {{ transition: width 0.5s ease-in-out; }}
+        .small-note {{ font-size: 0.8rem; color: #6c757d; }}
+    </style>
+</head>
+<body>
+    <div class=""container mt-4"">
+        <div class=""d-flex justify-content-between align-items-center mb-4"">
+            <h1>ClusterSharp Dashboard</h1>
+            <div class=""small-note text-end"">
+                <div>Auto-refreshes every 5 seconds</div>
+                <div>Powered by HTMX</div>
+            </div>
+        </div>
+        
+        <div id=""dashboard-content""
+             hx-get=""/dashboard/content""
+             hx-trigger=""load, every 2s""
+             hx-swap=""innerHTML"">
+            <div class=""d-flex justify-content-center"">
+                <div class=""spinner-border text-primary"" role=""status"">
+                    <span class=""visually-hidden"">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>";
+
+    return Results.Text(dashboardHtml, "text/html");
+}).WithName("dashboard");
+
+app.MapGet("/dashboard/content", (ClusterOverviewService overviewService) =>
+{
+    var overview = overviewService.Overview;
+
+    if (!overview.Any())
+    {
+        return Results.Text("<div class=\"alert alert-warning\">No cluster data available</div>", "text/html");
+    }
+
+    var sb = new StringBuilder();
+
+    // Add timestamp to verify updates
+    sb.Append($@"
+<div class=""d-flex justify-content-between"">
+    <h6>Monitoring active</h6>
+    <span class=""badge bg-secondary"">Last update: {DateTime.Now:HH:mm:ss}</span>
+</div>");
+
+    foreach (var service in overview)
+    {
+        sb.Append($@"
+<div class=""card shadow-sm mb-4 bg-body-tertiary"">
+    <div class=""card-header bg-primary bg-gradient text-white"">
+        <div class=""d-flex justify-content-between align-items-center"">
+            <h3 class=""mb-0"">{service.Name}</h3>
+            <span class=""badge bg-light text-dark"">Replicas: {service.Replicas}</span>
+        </div>
+    </div>
+    <div class=""card-body"">
+        <div class=""row"">");
+
+        foreach (var host in service.Hosts)
+        {
+            sb.Append($@"
+            <div class=""col-md-6 mb-3"">
+                <div class=""card h-100 border-0 shadow-sm"">
+                    <div class=""card-body"">
+                        <h5 class=""card-title"">{host.Hostname}</h5>
+                        <div class=""d-flex justify-content-between mb-2"">
+                            <span>External Port:</span>
+                            <span class=""fw-bold"">{host.ExternalPort}</span>
+                        </div>
+                        <div class=""mb-3"">
+                            <label class=""form-label d-flex justify-content-between mb-1"">
+                                <span>CPU: {host.CPU}%</span>
+                            </label>
+                            <div class=""progress"" style=""height: 10px;"">
+                                <div class=""progress-bar bg-info"" role=""progressbar"" 
+                                    style=""width: {Math.Min((int)host.CPU, 100)}%;"" 
+                                    aria-valuenow=""{host.CPU}"" aria-valuemin=""0"" aria-valuemax=""100"">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class=""form-label d-flex justify-content-between mb-1"">
+                                <span>Memory: {host.MemoryPercent}%</span>
+                            </label>
+                            <div class=""progress"" style=""height: 10px;"">
+                                <div class=""progress-bar bg-warning"" role=""progressbar"" 
+                                    style=""width: {Math.Min((int)host.MemoryPercent, 100)}%;"" 
+                                    aria-valuenow=""{host.MemoryPercent}"" aria-valuemin=""0"" aria-valuemax=""100"">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>");
+        }
+
+        sb.Append(@"
+        </div>
+    </div>
+</div>");
+    }
+
+    return Results.Text(sb.ToString(), "text/html");
+}).WithName("dashboard-content");
 
 app.MapOpenApi();
 

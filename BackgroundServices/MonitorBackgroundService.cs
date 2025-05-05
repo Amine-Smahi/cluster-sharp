@@ -74,7 +74,7 @@ public class MonitorBackgroundService : BackgroundService
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
         }
     }
 }
