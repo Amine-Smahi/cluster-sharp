@@ -3,10 +3,10 @@
     "Hostname": "node1",
     "Role": null,
     "MachineStats": {
-      "CPU": "2.4",
+      "CPU": "4.6",
       "Memory": {
-        "Value": "709/11705 MB",
-        "percentage": 606
+        "Value": "715/11705 MB",
+        "percentage": 611
       },
       "Disk": {
         "Value": "12G/233G",
@@ -18,7 +18,7 @@
         "Name": "amine.com",
         "CPU": "0.00%",
         "Memory": {
-          "Value": "6.477MiB / 11.43GiB",
+          "Value": "6.492MiB / 11.43GiB",
           "percentage": 0.06
         },
         "Disk": {

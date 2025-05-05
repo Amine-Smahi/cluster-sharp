@@ -5,9 +5,9 @@
     "Hosts": [
       {
         "Hostname": "node1",
-        "CPU": "2.4",
-        "Memory": "709/11705 MB",
-        "MemoryPercent": 606,
+        "CPU": "4.6",
+        "Memory": "715/11705 MB",
+        "MemoryPercent": 611,
         "ExternalPort": "8080"
       }
     ]
