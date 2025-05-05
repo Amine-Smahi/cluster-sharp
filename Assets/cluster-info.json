@@ -3,26 +3,39 @@
     "Hostname": "node1",
     "Role": null,
     "MachineStats": {
-      "CPU": 0,
+      "CPU": 2.4,
       "Memory": {
-        "Value": "749/11705 MB",
-        "percentage": 6.4
+        "Value": "6,3%",
+        "percentage": 6.3
       },
       "Disk": {
-        "Value": "12G/233G",
+        "Value": "6%",
         "percentage": 6
       }
     },
     "Containers": [
       {
+        "Name": "amina.com",
+        "CPU": "0.00%",
+        "Memory": {
+          "Value": "3.258MiB / 11.43GiB",
+          "percentage": 0.03
+        },
+        "Disk": {
+          "Value": "0B / 0B",
+          "percentage": 0
+        },
+        "external_port": "8090"
+      },
+      {
         "Name": "amine.com",
         "CPU": "0.00%",
         "Memory": {
-          "Value": "9.223MiB / 11.43GiB",
-          "percentage": 0.08
+          "Value": "3.551MiB / 11.43GiB",
+          "percentage": 0.03
         },
         "Disk": {
-          "Value": "4.24MB / 0B",
+          "Value": "0B / 0B",
           "percentage": 0
         },
         "external_port": "8080"

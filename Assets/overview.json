@@ -1,13 +1,26 @@
 [
   {
+    "Name": "amina.com",
+    "Replicas": 1,
+    "Hosts": [
+      {
+        "Hostname": "node1",
+        "CPU": 2.4,
+        "Memory": "6,3%",
+        "MemoryPercent": 6.3,
+        "ExternalPort": "8090"
+      }
+    ]
+  },
+  {
     "Name": "amine.com",
     "Replicas": 1,
     "Hosts": [
       {
         "Hostname": "node1",
-        "CPU": 0,
-        "Memory": "749/11705 MB",
-        "MemoryPercent": 6.4,
+        "CPU": 2.4,
+        "Memory": "6,3%",
+        "MemoryPercent": 6.3,
         "ExternalPort": "8080"
       }
     ]

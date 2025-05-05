@@ -91,6 +91,7 @@ var app = builder.Build();
 
 app.UseRouting();
 
+app.UseRequestTimeouts();
 app.UseResponseCompression();
 app.UseResponseCaching();
 
@@ -164,7 +165,7 @@ app.MapGet("/dashboard", (ClusterOverviewService overviewService, HttpContext co
 
     string dashboardHtml = $@"
 <!DOCTYPE html>
-<html lang=""en"">
+<html lang=""en"" data-bs-theme=""dark"">
 <head>
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
@@ -178,17 +179,9 @@ app.MapGet("/dashboard", (ClusterOverviewService overviewService, HttpContext co
 </head>
 <body>
     <div class=""container mt-4"">
-        <div class=""d-flex justify-content-between align-items-center mb-4"">
-            <h1>ClusterSharp Dashboard</h1>
-            <div class=""small-note text-end"">
-                <div>Auto-refreshes every 5 seconds</div>
-                <div>Powered by HTMX</div>
-            </div>
-        </div>
-        
         <div id=""dashboard-content""
              hx-get=""/dashboard/content""
-             hx-trigger=""load, every 2s""
+             hx-trigger=""load, every 1s""
              hx-swap=""innerHTML"">
             <div class=""d-flex justify-content-center"">
                 <div class=""spinner-border text-primary"" role=""status"">
@@ -213,14 +206,6 @@ app.MapGet("/dashboard/content", (ClusterOverviewService overviewService) =>
     }
 
     var sb = new StringBuilder();
-
-    // Add timestamp to verify updates
-    sb.Append($@"
-<div class=""d-flex justify-content-between"">
-    <h6>Monitoring active</h6>
-    <span class=""badge bg-secondary"">Last update: {DateTime.Now:HH:mm:ss}</span>
-</div>");
-
     foreach (var service in overview)
     {
         sb.Append($@"

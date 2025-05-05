@@ -226,7 +226,6 @@ public static class SshHelper
 
     public static MachineStats? GetMachineStats(string hostname)
     {
-        var stats = new MachineStats();
         var clusterInfo = ClusterHelper.GetClusterSetup();
         if (clusterInfo == null)
             return null;
@@ -236,59 +235,50 @@ public static class SshHelper
             using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
             client.Connect();
 
-            using (var cmd = client.CreateCommand("top -bn1 | grep 'Cpu(s)' | awk '{print $2 + $4}'"))
+            var statsCommand = @"echo ""CPU $(LC_ALL=C top -bn1 | grep ""Cpu(s)"" | sed ""s/.*, *\([0-9.]*\)%* id.*/\1/"" | awk '{printf(""%.1f%%"", 100-$1)}')  RAM $(free -m | awk '/Mem:/ { printf(""%.1f%%"", $3/$2*100) }')  DISK $(df -h / | awk 'NR==2 {print $5}')"" ";
+            using var cmd = client.CreateCommand(statsCommand);
+            cmd.Execute();
+            
+            var result = cmd.Result.Trim();
+            Console.WriteLine(result);
+            var stats = new MachineStats();
+            
+            if (!string.IsNullOrEmpty(result))
             {
-                cmd.Execute();
-                var result = cmd.Result.Trim();
-                stats.CPU = double.TryParse(result, CultureInfo.InvariantCulture, out var o) ? o : 0;
-            }
-
-            using (var cmd = client.CreateCommand("free -m | awk 'NR==2{printf \"%s/%s MB (%.2f%%)\", $3,$2,$3*100/$2 }'"))
-            {
-                cmd.Execute();
-                var memStr = cmd.Result.Trim();
-                var valuePart = memStr;
-                double percent = 0;
-                var percentStart = memStr.IndexOf('(');
-                var percentEnd = memStr.IndexOf(')');
-                if (percentStart != -1 && percentEnd != -1 && percentEnd > percentStart)
+                var cpuMatch = System.Text.RegularExpressions.Regex.Match(result, @"CPU\s+(\d+\.\d+)%");
+                if (cpuMatch.Success && double.TryParse(cpuMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var cpu))
                 {
-                    valuePart = memStr.Substring(0, percentStart).Trim();
-                    var percentStr = memStr.Substring(percentStart + 1, percentEnd - percentStart - 2).Replace("%", "");
-                    if (double.TryParse(percentStr, CultureInfo.InvariantCulture, out percent))
-                        percent = Math.Round(percent, 2);
-                    else
-                        percent = 0;
+                    stats.CPU = cpu;
                 }
-                stats.Memory = new MemStat { Value = valuePart, Percentage = percent };
-            }
 
-            using (var cmd = client.CreateCommand("df -h / | awk 'NR==2{printf \"%s/%s (%s)\", $3,$2,$5}'"))
-            {
-                cmd.Execute();
-                var diskStr = cmd.Result.Trim();
-                var valuePart = diskStr;
-                double percent = 0;
-                var percentStart = diskStr.IndexOf('(');
-                var percentEnd = diskStr.IndexOf(')');
-                if (percentStart != -1 && percentEnd != -1 && percentEnd > percentStart)
+                var ramMatch = System.Text.RegularExpressions.Regex.Match(result, @"RAM\s+(\d+\.\d+)%");
+                if (ramMatch.Success && double.TryParse(ramMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var ram))
                 {
-                    valuePart = diskStr.Substring(0, percentStart).Trim();
-                    var percentStr = diskStr.Substring(percentStart + 1, percentEnd - percentStart - 2).Replace("%", "");
-                    if (double.TryParse(percentStr, CultureInfo.InvariantCulture, out percent))
-                        percent = Math.Round(percent, 2);
-                    else
-                        percent = 0;
+                    stats.Memory = new MemStat 
+                    { 
+                        Value = $"{ram}%", 
+                        Percentage = ram 
+                    };
                 }
-                stats.Disk = new DiskStat { Value = valuePart, Percentage = percent };
+                
+                var diskMatch = System.Text.RegularExpressions.Regex.Match(result, @"DISK\s+(\d+)%");
+                if (diskMatch.Success && double.TryParse(diskMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var disk))
+                {
+                    stats.Disk = new DiskStat 
+                    { 
+                        Value = $"{disk}%", 
+                        Percentage = disk 
+                    };
+                }
             }
 
             client.Disconnect();
+            return stats;
         }
         catch (Exception)
         {
             // Error handling if needed
+            return null;
         }
-        return stats;
     }
 }
