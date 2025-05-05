@@ -21,12 +21,12 @@
   "Machines": [
     {
       "Hostname": "control-plane",
-      "CpuPercent": 9.3,
-      "MemoryPercent": 6.6
+      "CpuPercent": 2.3,
+      "MemoryPercent": 6.5
     },
     {
       "Hostname": "node1",
-      "CpuPercent": 7.1,
+      "CpuPercent": 4.8,
       "MemoryPercent": 6.5
     }
   ]
