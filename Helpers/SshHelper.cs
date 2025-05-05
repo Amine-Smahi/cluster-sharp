@@ -193,7 +193,7 @@ public static class SshHelper
                         containers.Add(new ContainerInfo
                         {
                             Name = name,
-                            CPU = parts[1],
+                            Cpu = parts[1],
                             Memory = new MemStat { Value = memValue, Percentage = percent },
                             Disk = new DiskStat { Value = parts[3], Percentage = 0 },
                             ExternalPort = externalPort
@@ -240,7 +240,6 @@ public static class SshHelper
             cmd.Execute();
             
             var result = cmd.Result.Trim();
-            Console.WriteLine(result);
             var stats = new MachineStats();
             
             if (!string.IsNullOrEmpty(result))
@@ -248,7 +247,7 @@ public static class SshHelper
                 var cpuMatch = System.Text.RegularExpressions.Regex.Match(result, @"CPU\s+(\d+\.\d+)%");
                 if (cpuMatch.Success && double.TryParse(cpuMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var cpu))
                 {
-                    stats.CPU = cpu;
+                    stats.Cpu = cpu;
                 }
 
                 var ramMatch = System.Text.RegularExpressions.Regex.Match(result, @"RAM\s+(\d+\.\d+)%");

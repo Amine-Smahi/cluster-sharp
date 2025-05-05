@@ -4,11 +4,11 @@ namespace ClusterSharp.Api.Models;
 
 public class ContainerInfo
 {
-    public string Name { get; set; }
-    public string CPU { get; set; }
+    public string Name { get; set; } = null!;
+    public string? Cpu { get; set; }
     public MemStat Memory { get; set; } = new();
     public DiskStat Disk { get; set; } = new();
     
     [JsonPropertyName("external_port")]
-    public string ExternalPort { get; set; }
+    public string ExternalPort { get; set; } = null!;
 }

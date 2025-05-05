@@ -5,8 +5,8 @@ namespace ClusterSharp.Api.Models.Cluster;
 public class Admin
 {
     [JsonPropertyName("username")]
-    public string Username { get; set; }
+    public string Username { get; set; } = null!;
 
     [JsonPropertyName("password")]
-    public string Password { get; set; }
+    public string Password { get; set; } = null!;
 }

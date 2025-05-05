@@ -8,5 +8,5 @@ public class Member
     public string Hostname { get; set; } = string.Empty;
 
     [JsonPropertyName("role")]
-    public string Role { get; set; }
+    public string? Role { get; set; }
 }

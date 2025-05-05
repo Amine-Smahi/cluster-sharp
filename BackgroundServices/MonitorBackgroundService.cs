@@ -4,14 +4,9 @@ using ClusterSharp.Api.Models.Cluster;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
-public class MonitorBackgroundService : BackgroundService
+public class MonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly ClusterOverviewService _clusterOverviewService;
-
-    public MonitorBackgroundService(ClusterOverviewService clusterOverviewService)
-    {
-        _clusterOverviewService = clusterOverviewService;
-    }
+    private readonly TimeSpan _monitorInterval = TimeSpan.FromSeconds(10);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -42,7 +37,7 @@ public class MonitorBackgroundService : BackgroundService
                         Hostname = worker,
                         MachineStats = new MachineStats
                         {
-                            CPU = machineStats.CPU,
+                            Cpu = machineStats.Cpu,
                             Memory = new MemStat
                                 { Value = machineStats.Memory.Value, Percentage = machineStats.Memory.Percentage },
                             Disk = new DiskStat
@@ -51,7 +46,7 @@ public class MonitorBackgroundService : BackgroundService
                         Containers = containers.Select(c => new ContainerInfo
                         {
                             Name = c.Name,
-                            CPU = c.CPU,
+                            Cpu = c.Cpu,
                             Memory = new MemStat { Value = c.Memory.Value, Percentage = c.Memory.Percentage },
                             Disk = new DiskStat { Value = c.Disk.Value, Percentage = c.Disk.Percentage },
                             ExternalPort = c.ExternalPort
@@ -63,18 +58,18 @@ public class MonitorBackgroundService : BackgroundService
                 if (errorMessage != null)
                 {
                     Console.WriteLine($"Error writing cluster info to file: {errorMessage}");
-                    return;
+                    continue;
                 }
 
                 ClusterHelper.GenerateClusterOverview("Assets/cluster-info.json");
-                _clusterOverviewService.UpdateOverview();
+                clusterOverviewService.UpdateOverview();
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
+            await Task.Delay(_monitorInterval, stoppingToken);
         }
     }
 }

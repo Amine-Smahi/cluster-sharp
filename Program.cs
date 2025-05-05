@@ -6,9 +6,6 @@ using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using System.Runtime;
 using ClusterSharp.Api.Models.Cluster;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.FileProviders;
-using ClusterSharp.Api.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,6 +92,33 @@ app.UseRequestTimeouts();
 app.UseResponseCompression();
 app.UseResponseCaching();
 
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next.Invoke();
+    }
+    catch (Exception ex) when (ex.Message.Contains("No destination available for") || ex.Message.Contains("Failed to resolve destination"))
+    {
+        await Task.Delay(100);
+        try
+        {
+            if (context.Request.Body.CanSeek)
+            {
+                context.Request.Body.Position = 0;
+            }
+            
+            await next.Invoke();
+        }
+        catch
+        {
+            context.Response.StatusCode = 503;
+            await context.Response.WriteAsync("Service temporarily unavailable. Please try again.");
+        }
+    }
+});
+
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Remove("Server");
@@ -158,118 +182,24 @@ app.MapGet("/cluster/overview", (ClusterOverviewService overviewService) =>
     return Results.Ok(overview);
 }).WithName("overview");
 
-app.MapGet("/dashboard", (ClusterOverviewService overviewService, HttpContext context) =>
-{
-    // Set content type to HTML
-    context.Response.ContentType = "text/html";
-
-    string dashboardHtml = $@"
-<!DOCTYPE html>
-<html lang=""en"" data-bs-theme=""dark"">
-<head>
-    <meta charset=""UTF-8"">
-    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>ClusterSharp Dashboard</title>
-    <link href=""https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"" rel=""stylesheet"">
-    <script src=""https://unpkg.com/htmx.org@1.9.10""></script>
-    <style>
-        .progress-bar {{ transition: width 0.5s ease-in-out; }}
-        .small-note {{ font-size: 0.8rem; color: #6c757d; }}
-    </style>
-</head>
-<body>
-    <div class=""container mt-4"">
-        <div id=""dashboard-content""
-             hx-get=""/dashboard/content""
-             hx-trigger=""load, every 1s""
-             hx-swap=""innerHTML"">
-            <div class=""d-flex justify-content-center"">
-                <div class=""spinner-border text-primary"" role=""status"">
-                    <span class=""visually-hidden"">Loading...</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</body>
-</html>";
-
-    return Results.Text(dashboardHtml, "text/html");
-}).WithName("dashboard");
-
-app.MapGet("/dashboard/content", (ClusterOverviewService overviewService) =>
-{
-    var overview = overviewService.Overview;
-
-    if (!overview.Any())
-    {
-        return Results.Text("<div class=\"alert alert-warning\">No cluster data available</div>", "text/html");
-    }
-
-    var sb = new StringBuilder();
-    foreach (var service in overview)
-    {
-        sb.Append($@"
-<div class=""card shadow-sm mb-4 bg-body-tertiary"">
-    <div class=""card-header bg-primary bg-gradient text-white"">
-        <div class=""d-flex justify-content-between align-items-center"">
-            <h3 class=""mb-0"">{service.Name}</h3>
-            <span class=""badge bg-light text-dark"">Replicas: {service.Replicas}</span>
-        </div>
-    </div>
-    <div class=""card-body"">
-        <div class=""row"">");
-
-        foreach (var host in service.Hosts)
-        {
-            sb.Append($@"
-            <div class=""col-md-6 mb-3"">
-                <div class=""card h-100 border-0 shadow-sm"">
-                    <div class=""card-body"">
-                        <h5 class=""card-title"">{host.Hostname}</h5>
-                        <div class=""d-flex justify-content-between mb-2"">
-                            <span>External Port:</span>
-                            <span class=""fw-bold"">{host.ExternalPort}</span>
-                        </div>
-                        <div class=""mb-3"">
-                            <label class=""form-label d-flex justify-content-between mb-1"">
-                                <span>CPU: {host.CPU}%</span>
-                            </label>
-                            <div class=""progress"" style=""height: 10px;"">
-                                <div class=""progress-bar bg-info"" role=""progressbar"" 
-                                    style=""width: {Math.Min((int)host.CPU, 100)}%;"" 
-                                    aria-valuenow=""{host.CPU}"" aria-valuemin=""0"" aria-valuemax=""100"">
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label class=""form-label d-flex justify-content-between mb-1"">
-                                <span>Memory: {host.MemoryPercent}%</span>
-                            </label>
-                            <div class=""progress"" style=""height: 10px;"">
-                                <div class=""progress-bar bg-warning"" role=""progressbar"" 
-                                    style=""width: {Math.Min((int)host.MemoryPercent, 100)}%;"" 
-                                    aria-valuenow=""{host.MemoryPercent}"" aria-valuemin=""0"" aria-valuemax=""100"">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>");
-        }
-
-        sb.Append(@"
-        </div>
-    </div>
-</div>");
-    }
-
-    return Results.Text(sb.ToString(), "text/html");
-}).WithName("dashboard-content");
-
 app.MapOpenApi();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+
+app.MapGet("/health", (IProxyConfigProvider configProvider) => 
+{
+    var config = configProvider.GetConfig();
+    var health = new
+    {
+        Status = "healthy",
+        RouteCount = config.Routes.Count,
+        ClusterCount = config.Clusters.Count,
+        Timestamp = DateTime.UtcNow
+    };
+    return Results.Ok(health);
+}).WithName("health");
 
 var overviewService = app.Services.GetRequiredService<ClusterOverviewService>();
 YarpHelper.SetupYarpRouteUpdates(app, overviewService);

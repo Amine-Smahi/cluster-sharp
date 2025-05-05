@@ -1,5 +1,4 @@
 using System.Text.Json;
-using ClusterSharp.Api.Models.Cluster;
 
 namespace ClusterSharp.Api.Helpers;
 

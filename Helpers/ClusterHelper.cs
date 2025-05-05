@@ -8,8 +8,9 @@ public static class ClusterHelper
 {
     public static ClusterSetup? GetClusterSetup()
     {
-        var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);;
-        if(result == null)
+        var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);
+        ;
+        if (result == null)
             Console.WriteLine(errorMessage);
         return result;
     }
@@ -26,7 +27,6 @@ public static class ClusterHelper
         return result.Members.Where(m => m.Role == Constants.Worker)
             .Select(x => x.Hostname)
             .ToList();
-
     }
 
     public static void GenerateClusterOverview(string clusterInfoPath)
@@ -49,30 +49,31 @@ public static class ClusterHelper
             }
         }
 
-        var overview = new List<ClusterOverview>();
-        foreach (var (containerName, hosts) in containerMap)
+        var overview = new ClusterOverview
         {
-            var orderedHosts = hosts
-                .OrderBy(h => h.MachineStats.CPU)
-                .ThenBy(h => h.MachineStats.Memory.Percentage)
-                .ToList();
-            
-            overview.Add(new ClusterOverview
-            {
-                Name = containerName,
-                Replicas = hosts.Count,
-                Hosts = orderedHosts.Select(h => new HostInfo
+            Containers = clusterInfo.SelectMany(x => x.Containers)
+                .GroupBy(x => x.Name)
+                .Select(x => x.ToList())
+                .Select(x =>
                 {
-                    Hostname = h.Hostname,
-                    CPU = h.MachineStats.CPU,
-                    Memory = h.MachineStats.Memory.Value,
-                    MemoryPercent = h.MachineStats.Memory.Percentage,
-                    ExternalPort = clusterInfo.FirstOrDefault(n => n.Containers.Any(c => c.Name == containerName))?
-                        .Containers.FirstOrDefault(c => c.Name == containerName)?.ExternalPort ?? string.Empty
-                }).ToList()
-            });
-        }
-        
+                    var container = new Container
+                    {
+                        Name = x.First().Name,
+                        Replicas = x.Count(),
+                        ExternalPort = x.First().ExternalPort,
+                    };
+                    container.Hosts = clusterInfo.Where(y => y.Containers.Any(c => c.Name == container.Name))
+                        .Select(y => y.Hostname).Distinct().ToList();
+                    return container;
+                }).ToList(),
+            Machines = clusterInfo.Select(x => new Machine
+            {
+                Hostname = x.Hostname,
+                CpuPercent = x.MachineStats.Cpu,
+                MemoryPercent = x.MachineStats.Memory.Percentage
+            }).ToList()
+        };
+
         FileHelper.SetContentToFile("Assets/overview.json", overview, out errorMessage);
         if (errorMessage != null)
             Console.WriteLine($"Error writing overview to file: {errorMessage}");

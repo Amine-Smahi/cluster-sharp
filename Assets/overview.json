@@ -1,28 +1,27 @@
-[
-  {
-    "Name": "amina.com",
-    "Replicas": 1,
-    "Hosts": [
-      {
-        "Hostname": "node1",
-        "CPU": 2.4,
-        "Memory": "6,3%",
-        "MemoryPercent": 6.3,
-        "ExternalPort": "8090"
-      }
-    ]
-  },
-  {
-    "Name": "amine.com",
-    "Replicas": 1,
-    "Hosts": [
-      {
-        "Hostname": "node1",
-        "CPU": 2.4,
-        "Memory": "6,3%",
-        "MemoryPercent": 6.3,
-        "ExternalPort": "8080"
-      }
-    ]
-  }
-]
+{
+  "Containers": [
+    {
+      "Name": "amina.com",
+      "Replicas": 1,
+      "ExternalPort": "8090",
+      "Hosts": [
+        "node1"
+      ]
+    },
+    {
+      "Name": "amine.com",
+      "Replicas": 1,
+      "ExternalPort": "8080",
+      "Hosts": [
+        "node1"
+      ]
+    }
+  ],
+  "Machines": [
+    {
+      "Hostname": "node1",
+      "CpuPercent": 0,
+      "MemoryPercent": 6.4
+    }
+  ]
+}

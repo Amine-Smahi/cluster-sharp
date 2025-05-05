@@ -2,16 +2,21 @@ namespace ClusterSharp.Api.Models;
 
 public class ClusterOverview
 {
-    public string Name { get; set; }
-    public int Replicas { get; set; }
-    public List<HostInfo> Hosts { get; set; }
+    public List<Container> Containers { get; set; } = [];
+    public List<Machine> Machines { get; set; } = [];
 }
 
-public class HostInfo
+public class Machine
 {
-    public string Hostname { get; set; }
-    public double CPU { get; set; }
-    public string Memory { get; set; }
+    public string? Hostname { get; set; }
+    public double CpuPercent { get; set; }
     public double MemoryPercent { get; set; }
-    public string ExternalPort { get; set; }
+}
+
+public class Container
+{
+    public string Name { get; set; } = null!;
+    public int Replicas { get; set; }
+    public string? ExternalPort { get; set; }
+    public List<string> Hosts { get; set; } = [];
 }

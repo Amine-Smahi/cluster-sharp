@@ -3,10 +3,10 @@
     "Hostname": "node1",
     "Role": null,
     "MachineStats": {
-      "CPU": 2.4,
+      "Cpu": 0,
       "Memory": {
-        "Value": "6,3%",
-        "percentage": 6.3
+        "Value": "6,4%",
+        "percentage": 6.4
       },
       "Disk": {
         "Value": "6%",
@@ -16,9 +16,9 @@
     "Containers": [
       {
         "Name": "amina.com",
-        "CPU": "0.00%",
+        "Cpu": "0.06%",
         "Memory": {
-          "Value": "3.258MiB / 11.43GiB",
+          "Value": "4.051MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {
@@ -29,10 +29,10 @@
       },
       {
         "Name": "amine.com",
-        "CPU": "0.00%",
+        "Cpu": "0.00%",
         "Memory": {
-          "Value": "3.551MiB / 11.43GiB",
-          "percentage": 0.03
+          "Value": "4.457MiB / 11.43GiB",
+          "percentage": 0.04
         },
         "Disk": {
           "Value": "0B / 0B",
