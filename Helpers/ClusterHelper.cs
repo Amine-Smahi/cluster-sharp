@@ -29,9 +29,9 @@ public static class ClusterHelper
             .ToList();
     }
 
-    public static void GenerateClusterOverview(string clusterInfoPath)
+    public static void GenerateClusterOverview()
     {
-        var clusterInfo = FileHelper.GetContentFromFile<List<ClusterNode>>(clusterInfoPath, out var errorMessage);
+        var clusterInfo = FileHelper.GetContentFromFile<List<ClusterNode>>("Assets/cluster-info.json", out var errorMessage);
         if (clusterInfo == null)
         {
             Console.WriteLine(errorMessage);

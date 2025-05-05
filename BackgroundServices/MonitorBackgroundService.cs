@@ -12,11 +12,19 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            await Task.Delay(_monitorInterval, stoppingToken);
+            
             try
             {
                 var clusterInfo = new List<ClusterNode>();
-                var workers = ClusterHelper.GetWorkers();
-                foreach (var worker in workers)
+                var cluster = ClusterHelper.GetClusterSetup();
+                if (cluster == null)
+                {
+                    Console.WriteLine("Error retrieving cluster setup");
+                    continue;
+                }
+                
+                foreach (var worker in cluster.Members.Select(x => x.Hostname))
                 {
                     var machineStats = SshHelper.GetMachineStats(worker);
                     if (machineStats == null)
@@ -61,15 +69,13 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                     continue;
                 }
 
-                ClusterHelper.GenerateClusterOverview("Assets/cluster-info.json");
+                ClusterHelper.GenerateClusterOverview();
                 clusterOverviewService.UpdateOverview();
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
-
-            await Task.Delay(_monitorInterval, stoppingToken);
         }
     }
 }

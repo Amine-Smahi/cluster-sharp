@@ -1,5 +1,7 @@
 using ClusterSharp.Api.Models.Cluster;
 using Yarp.ReverseProxy.Configuration;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ClusterSharp.Api.Helpers;
 
@@ -170,12 +172,158 @@ public static class YarpHelper
         try
         {
             var proxyConfigProvider = application.Services.GetRequiredService<IProxyConfigProvider>() as InMemoryConfigProvider;
-            proxyConfigProvider?.Update(routeConfigs, clusterConfigs);
-            Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} with {routeConfigs.Count} routes");
+            if (proxyConfigProvider != null)
+            {
+                var currentConfig = proxyConfigProvider.GetConfig();
+                
+                if (AreRoutesEqual(currentConfig.Routes, routeConfigs) && 
+                    AreClustersEqual(currentConfig.Clusters, clusterConfigs))
+                {
+                    Console.WriteLine($"Skipping YARP routes update at {DateTime.UtcNow:HH:mm:ss} - no changes detected");
+                    return;
+                }
+                
+                proxyConfigProvider.Update(routeConfigs, clusterConfigs);
+                Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} with {routeConfigs.Count} routes");
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to update YARP routes: {ex.Message}");
         }
+    }
+    
+    private static bool AreRoutesEqual(IReadOnlyList<RouteConfig> existingRoutes, IReadOnlyList<RouteConfig> newRoutes)
+    {
+        if (existingRoutes.Count != newRoutes.Count)
+            return false;
+        
+        var existingRouteMap = existingRoutes.ToDictionary(r => r.RouteId);
+        
+        foreach (var newRoute in newRoutes)
+        {
+            if (!existingRouteMap.TryGetValue(newRoute.RouteId, out var existingRoute))
+                return false;
+                
+            if (existingRoute.ClusterId != newRoute.ClusterId)
+                return false;
+                
+            if (!AreMatchesEqual(existingRoute.Match, newRoute.Match))
+                return false;
+                
+            if (existingRoute.Timeout != newRoute.Timeout)
+                return false;
+                
+            if (!AreTransformsEqual(existingRoute.Transforms!, newRoute.Transforms!))
+                return false;
+        }
+        
+        return true;
+    }
+    
+    private static bool AreMatchesEqual(RouteMatch? existing, RouteMatch? @new)
+    {
+        if (existing == null && @new == null)
+            return true;
+            
+        if (existing == null || @new == null)
+            return false;
+            
+        if (existing.Path != @new.Path)
+            return false;
+            
+        if (!AreListsEqual(existing.Hosts, @new.Hosts))
+            return false;
+            
+        return true;
+    }
+    
+    private static bool AreTransformsEqual(IReadOnlyList<IReadOnlyDictionary<string, string>> existing, 
+                                         IReadOnlyList<IReadOnlyDictionary<string, string>> @new)
+    {
+        if (existing.Count != @new.Count)
+            return false;
+            
+        for (int i = 0; i < existing.Count; i++)
+        {
+            var existingDict = existing[i];
+            var newDict = @new[i];
+            
+            if (existingDict.Count != newDict.Count)
+                return false;
+                
+            foreach (var kvp in existingDict)
+            {
+                if (!newDict.TryGetValue(kvp.Key, out var value) || value != kvp.Value)
+                    return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    private static bool AreClustersEqual(IReadOnlyList<ClusterConfig> existingClusters, IReadOnlyList<ClusterConfig> newClusters)
+    {
+        if (existingClusters.Count != newClusters.Count)
+            return false;
+            
+        var existingClusterMap = existingClusters.ToDictionary(c => c.ClusterId);
+        
+        foreach (var newCluster in newClusters)
+        {
+            if (!existingClusterMap.TryGetValue(newCluster.ClusterId, out var existingCluster))
+                return false;
+                
+            if (existingCluster.LoadBalancingPolicy != newCluster.LoadBalancingPolicy)
+                return false;
+                
+            if (!AreDestinationsEqual(existingCluster.Destinations!, newCluster.Destinations!))
+                return false;
+        }
+        
+        return true;
+    }
+    
+    private static bool AreDestinationsEqual(IReadOnlyDictionary<string, DestinationConfig> existing, 
+                                            IReadOnlyDictionary<string, DestinationConfig> @new)
+    {
+        if (existing.Count != @new.Count)
+            return false;
+            
+        foreach (var key in existing.Keys)
+        {
+            if (!@new.TryGetValue(key, out var newDestination))
+                return false;
+                
+            var existingDestination = existing[key];
+            
+            if (existingDestination.Address != newDestination.Address)
+                return false;
+                
+            if (existingDestination.Health != newDestination.Health)
+                return false;
+        }
+        
+        return true;
+    }
+    
+    private static bool AreListsEqual<T>(IReadOnlyList<T>? list1, IReadOnlyList<T>? list2)
+    {
+        if (list1 == null && list2 == null)
+            return true;
+            
+        if (list1 == null || list2 == null)
+            return false;
+            
+        if (list1.Count != list2.Count)
+            return false;
+            
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (!EqualityComparer<T>.Default.Equals(list1[i], list2[i]))
+                return false;
+        }
+        
+        return true;
     }
 } 
