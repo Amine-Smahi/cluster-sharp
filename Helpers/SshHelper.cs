@@ -3,6 +3,7 @@ using Renci.SshNet;
 using ClusterSharp.Api.Models.Commands;
 using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Shared;
+using System.Text.RegularExpressions;
 
 namespace ClusterSharp.Api.Helpers;
 
@@ -246,31 +247,17 @@ public static class SshHelper
             
             if (!string.IsNullOrEmpty(result))
             {
-                var cpuMatch = System.Text.RegularExpressions.Regex.Match(result, @"CPU\s+(\d+\.\d+)%");
+                var cpuMatch = Regex.Match(result, @"CPU\s+(\d+\.\d+)%");
                 if (cpuMatch.Success && double.TryParse(cpuMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var cpu))
-                {
                     stats.Cpu = cpu;
-                }
 
-                var ramMatch = System.Text.RegularExpressions.Regex.Match(result, @"RAM\s+(\d+\.\d+)%");
+                var ramMatch = Regex.Match(result, @"RAM\s+(\d+\.\d+)%");
                 if (ramMatch.Success && double.TryParse(ramMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var ram))
-                {
-                    stats.Memory = new Stat 
-                    { 
-                        Value = $"{ram}%", 
-                        Percentage = ram 
-                    };
-                }
+                    stats.Memory = ram;
                 
-                var diskMatch = System.Text.RegularExpressions.Regex.Match(result, @"DISK\s+(\d+)%");
+                var diskMatch = Regex.Match(result, @"DISK\s+(\d+)%");
                 if (diskMatch.Success && double.TryParse(diskMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var disk))
-                {
-                    stats.Disk = new Stat 
-                    { 
-                        Value = $"{disk}%", 
-                        Percentage = disk 
-                    };
-                }
+                    stats.Disk = disk;
             }
 
             client.Disconnect();

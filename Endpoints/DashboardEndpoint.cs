@@ -107,15 +107,15 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                         <div class='row'>
                             <div class='col-6'>
                                 <p class='mb-1'>CPU</p>
-                                <progress class='bg-{GetColorClass(machine.CpuPercent)}' 
-                                          value='{machine.CpuPercent.ToString(CultureInfo.InvariantCulture)}' max='100'></progress>
-                                <p class='progress-label'>{machine.CpuPercent.ToString(CultureInfo.InvariantCulture)}%</p>
+                                <progress class='bg-{GetColorClass(machine.Cpu)}' 
+                                          value='{machine.Cpu.ToString(CultureInfo.InvariantCulture)}' max='100'></progress>
+                                <p class='progress-label'>{machine.Cpu.ToString(CultureInfo.InvariantCulture)}%</p>
                             </div>
                             <div class='col-6'>
                                 <p class='mb-1'>Memory</p>
-                                <progress class='bg-{GetColorClass(machine.MemoryPercent)}' 
-                                          value='{machine.MemoryPercent.ToString(CultureInfo.InvariantCulture)}' max='100'></progress>
-                                <p class='progress-label'>{machine.MemoryPercent.ToString(CultureInfo.InvariantCulture)}%</p>
+                                <progress class='bg-{GetColorClass(machine.Memory)}' 
+                                          value='{machine.Memory.ToString(CultureInfo.InvariantCulture)}' max='100'></progress>
+                                <p class='progress-label'>{machine.Memory.ToString(CultureInfo.InvariantCulture)}%</p>
                             </div>
                         </div>
                     </div>
@@ -149,9 +149,9 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         await SendStringAsync(html, contentType: "text/html", cancellation: ct);
     }
 
-    private string GetColorClass(double percent)
+    private string GetColorClass(double percentage)
     {
-        return percent switch
+        return percentage switch
         {
             < 50 => "success",
             < 80 => "warning",

@@ -30,11 +30,11 @@
     {
       "Hostname": "control-plane",
       "CpuPercent": 0,
-      "MemoryPercent": 6.6
+      "MemoryPercent": 6.7
     },
     {
       "Hostname": "node1",
-      "CpuPercent": 4.5,
+      "CpuPercent": 6.7,
       "MemoryPercent": 6.6
     }
   ]

@@ -4,21 +4,15 @@
     "role": null,
     "MachineStats": {
       "Cpu": 0,
-      "Memory": {
-        "Value": "6,6%",
-        "percentage": 6.6
-      },
-      "Disk": {
-        "Value": "7%",
-        "percentage": 7
-      }
+      "Memory": 6.7,
+      "Disk": 7
     },
     "Containers": [
       {
         "Name": "registry",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "5.488MiB / 11.43GiB",
+          "Value": "5.453MiB / 11.43GiB",
           "percentage": 0.05
         },
         "Disk": {
@@ -29,9 +23,9 @@
       },
       {
         "Name": "amine.com",
-        "Cpu": "0.08%",
+        "Cpu": "0.00%",
         "Memory": {
-          "Value": "4.176MiB / 11.43GiB",
+          "Value": "4.332MiB / 11.43GiB",
           "percentage": 0.04
         },
         "Disk": {
@@ -46,22 +40,16 @@
     "hostname": "node1",
     "role": null,
     "MachineStats": {
-      "Cpu": 4.5,
-      "Memory": {
-        "Value": "6,6%",
-        "percentage": 6.6
-      },
-      "Disk": {
-        "Value": "6%",
-        "percentage": 6
-      }
+      "Cpu": 6.7,
+      "Memory": 6.6,
+      "Disk": 6
     },
     "Containers": [
       {
         "Name": "amine.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "3.363MiB / 11.43GiB",
+          "Value": "3.387MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {
@@ -72,9 +60,9 @@
       },
       {
         "Name": "amina.com",
-        "Cpu": "0.00%",
+        "Cpu": "0.08%",
         "Memory": {
-          "Value": "3.453MiB / 11.43GiB",
+          "Value": "3.469MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {

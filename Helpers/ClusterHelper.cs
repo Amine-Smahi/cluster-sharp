@@ -70,8 +70,8 @@ public static class ClusterHelper
             Machines = clusterInfo.Select(x => new Machine
             {
                 Hostname = x.Hostname,
-                CpuPercent = x.MachineStats.Cpu,
-                MemoryPercent = x.MachineStats.Memory.Percentage
+                Cpu = x.MachineStats.Cpu,
+                Memory = x.MachineStats.Memory
             }).ToList()
         };
 

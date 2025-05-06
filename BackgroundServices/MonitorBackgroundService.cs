@@ -47,10 +47,8 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                         MachineStats = new MachineStats
                         {
                             Cpu = machineStats.Cpu,
-                            Memory = new Stat
-                                { Value = machineStats.Memory.Value, Percentage = machineStats.Memory.Percentage },
-                            Disk = new Stat
-                                { Value = machineStats.Disk.Value, Percentage = machineStats.Disk.Percentage }
+                            Memory = machineStats.Memory,
+                            Disk = machineStats.Disk
                         },
                         Containers = containers.Select(c => new ContainerStats
                         {
