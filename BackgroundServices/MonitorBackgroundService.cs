@@ -54,8 +54,8 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                         {
                             Name = c.Name,
                             Cpu = c.Cpu,
-                            Memory = new Stat { Value = c.Memory.Value, Percentage = c.Memory.Percentage },
-                            Disk = new Stat { Value = c.Disk.Value, Percentage = c.Disk.Percentage },
+                            Memory =  c.Memory,
+                            Disk = c.Disk,
                             ExternalPort = c.ExternalPort
                         }).ToList()
                     });

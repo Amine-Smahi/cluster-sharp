@@ -143,6 +143,15 @@ public static class SshHelper
         {
             using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
             client.Connect();
+            
+            // First get a list of all container names
+            using var listCmd = client.CreateCommand("docker ps --format '{{.Names}}'");
+            listCmd.Execute();
+            var containerNames = listCmd.Result.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(name => name.Trim('\''))
+                .ToList();
+                
+            // Get port mappings for correlation
             var portMap = new Dictionary<string, string>();
             using (var psCmd = client.CreateCommand("docker ps --format '{{.Names}}|{{.Ports}}'"))
             {
@@ -157,53 +166,50 @@ public static class SshHelper
                     }
                 }
             }
-
-            var format = "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.BlockIO}}";
-            using var cmd = client.CreateCommand($"docker stats --no-stream --format '{format}'");
-            cmd.Execute();
-            var output = cmd.Result;
-            var error = cmd.Error;
-            if (cmd.ExitStatus == 0)
+            
+            // Get stats for each container using a simplified approach
+            foreach (var container in containerNames)
             {
-                foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                var statsCommand = $"container=\"{container}\"; " +
+                                  "echo \"CPU $(docker stats --no-stream --format '{{.CPUPerc}}' $container) " +
+                                  "RAM $(docker stats --no-stream --format '{{.MemPerc}}' $container) " +
+                                  "DISK $(docker ps -s --filter \"name=$container\" --format \"{{.Size}}\")\"";
+                
+                using var statsCmd = client.CreateCommand(statsCommand);
+                statsCmd.Execute();
+                var result = statsCmd.Result.Trim();
+                
+                if (!string.IsNullOrEmpty(result))
                 {
-                    var parts = line.Split('|');
-                    if (parts.Length >= 4)
+                    var cpuMatch = Regex.Match(result, @"CPU\s+(\d+\.\d+%)");
+                    var ramMatch = Regex.Match(result, @"RAM\s+(\d+\.\d+%)");
+                    var diskMatch = Regex.Match(result, @"DISK\s+(.+)$");
+                    
+                    double cpuPercent = 0;
+                    double ramPercent = 0;
+                    
+                    if (cpuMatch.Success && double.TryParse(cpuMatch.Groups[1].Value.TrimEnd('%'), 
+                            CultureInfo.InvariantCulture, out var cpu))
+                        cpuPercent = cpu;
+                            
+                    if (ramMatch.Success && double.TryParse(ramMatch.Groups[1].Value.TrimEnd('%'), 
+                            CultureInfo.InvariantCulture, out var ram))
+                        ramPercent = ram;
+                    
+                    portMap.TryGetValue(container, out var externalPortRaw);
+                    var externalPort = ExtractFirstHostPort(externalPortRaw ?? string.Empty);
+                    
+                    containers.Add(new ContainerStats
                     {
-                        var memValue = parts[2].Trim();
-                        double percent = 0;
-                        try
-                        {
-                            var memSplit = memValue.Split('/');
-                            if (memSplit.Length == 2)
-                            {
-                                var usedStr = memSplit[0].Trim();
-                                var totalStr = memSplit[1].Trim();
-                                var used = ParseMemoryValue(usedStr);
-                                var total = ParseMemoryValue(totalStr);
-                                if (total > 0)
-                                    percent = Math.Round(used / total * 100.0, 2);
-                            }
-                        }
-                        catch(Exception e)
-                        {
-                            Console.WriteLine(e.Message);
-                        }
-
-                        var name = parts[0];
-                        portMap.TryGetValue(name, out var externalPortRaw);
-                        var externalPort = ExtractFirstHostPort(externalPortRaw ?? string.Empty);
-                        containers.Add(new ContainerStats
-                        {
-                            Name = name,
-                            Cpu = parts[1],
-                            Memory = new Stat { Value = memValue, Percentage = percent },
-                            Disk = new Stat { Value = parts[3], Percentage = 0 },
-                            ExternalPort = externalPort
-                        });
-                    }
+                        Name = container,
+                        Cpu = cpuPercent,
+                        Memory = ramPercent,
+                        Disk = diskMatch.Success ? diskMatch.Groups[1].Value : "0B", 
+                        ExternalPort = externalPort
+                    });
                 }
             }
+            
             client.Disconnect();
         }
         catch (Exception e)
