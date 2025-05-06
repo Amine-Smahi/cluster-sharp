@@ -4,15 +4,8 @@ using ClusterSharp.Api.Models;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class ClusterOverviewEndpoint : EndpointWithoutRequest
+public class ClusterOverviewEndpoint(ClusterOverviewService overviewService) : EndpointWithoutRequest
 {
-    private readonly ClusterOverviewService _overviewService;
-
-    public ClusterOverviewEndpoint(ClusterOverviewService overviewService)
-    {
-        _overviewService = overviewService;
-    }
-
     public override void Configure()
     {
         Get("/cluster/overview");
@@ -27,7 +20,7 @@ public class ClusterOverviewEndpoint : EndpointWithoutRequest
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var overview = _overviewService.Overview;
+        var overview = overviewService.Overview;
         await SendOkAsync(overview, ct);
     }
 } 

@@ -177,11 +177,7 @@ public static class YarpHelper
                 var currentConfig = proxyConfigProvider.GetConfig();
                 
                 if (AreRoutesEqual(currentConfig.Routes, routeConfigs) && 
-                    AreClustersEqual(currentConfig.Clusters, clusterConfigs))
-                {
-                    Console.WriteLine($"Skipping YARP routes update at {DateTime.UtcNow:HH:mm:ss} - no changes detected");
-                    return;
-                }
+                    AreClustersEqual(currentConfig.Clusters, clusterConfigs)) return;
                 
                 proxyConfigProvider.Update(routeConfigs, clusterConfigs);
                 Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} with {routeConfigs.Count} routes");

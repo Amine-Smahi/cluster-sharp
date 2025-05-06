@@ -11,15 +11,8 @@ public class HealthResponse
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 } 
 
-public class HealthEndpoint : EndpointWithoutRequest<HealthResponse>
+public class HealthEndpoint(IProxyConfigProvider configProvider) : EndpointWithoutRequest<HealthResponse>
 {
-    private readonly IProxyConfigProvider _configProvider;
-
-    public HealthEndpoint(IProxyConfigProvider configProvider)
-    {
-        _configProvider = configProvider;
-    }
-
     public override void Configure()
     {
         Get("/health");
@@ -34,7 +27,7 @@ public class HealthEndpoint : EndpointWithoutRequest<HealthResponse>
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var config = _configProvider.GetConfig();
+        var config = configProvider.GetConfig();
         
         await SendOkAsync(new HealthResponse
         {

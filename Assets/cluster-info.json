@@ -3,40 +3,26 @@
     "Hostname": "control-plane",
     "Role": null,
     "MachineStats": {
-      "Cpu": 2.3,
+      "Cpu": 2.4,
       "Memory": {
-        "Value": "6.5%",
-        "percentage": 6.5
+        "Value": "6,4%",
+        "percentage": 6.4
       },
       "Disk": {
         "Value": "7%",
         "percentage": 7
       }
     },
-    "Containers": [
-      {
-        "Name": "amine.com",
-        "Cpu": "0.00%",
-        "Memory": {
-          "Value": "5.5MiB / 11.43GiB",
-          "percentage": 0.05
-        },
-        "Disk": {
-          "Value": "0B / 0B",
-          "percentage": 0
-        },
-        "external_port": "8080"
-      }
-    ]
+    "Containers": []
   },
   {
     "Hostname": "node1",
     "Role": null,
     "MachineStats": {
-      "Cpu": 4.8,
+      "Cpu": 7,
       "Memory": {
-        "Value": "6.5%",
-        "percentage": 6.5
+        "Value": "6,6%",
+        "percentage": 6.6
       },
       "Disk": {
         "Value": "6%",
@@ -48,7 +34,7 @@
         "Name": "amina.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "3.422MiB / 11.43GiB",
+          "Value": "3.488MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {
@@ -61,8 +47,8 @@
         "Name": "amine.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "5.098MiB / 11.43GiB",
-          "percentage": 0.04
+          "Value": "5.938MiB / 11.43GiB",
+          "percentage": 0.05
         },
         "Disk": {
           "Value": "16.4kB / 0B",

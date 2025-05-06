@@ -1,18 +1,17 @@
 {
   "Containers": [
     {
-      "Name": "amine.com",
-      "Replicas": 2,
-      "ExternalPort": "8080",
+      "Name": "amina.com",
+      "Replicas": 1,
+      "ExternalPort": "8090",
       "Hosts": [
-        "control-plane",
         "node1"
       ]
     },
     {
-      "Name": "amina.com",
+      "Name": "amine.com",
       "Replicas": 1,
-      "ExternalPort": "8090",
+      "ExternalPort": "8080",
       "Hosts": [
         "node1"
       ]
@@ -21,13 +20,13 @@
   "Machines": [
     {
       "Hostname": "control-plane",
-      "CpuPercent": 2.3,
-      "MemoryPercent": 6.5
+      "CpuPercent": 2.4,
+      "MemoryPercent": 6.4
     },
     {
       "Hostname": "node1",
-      "CpuPercent": 4.8,
-      "MemoryPercent": 6.5
+      "CpuPercent": 7,
+      "MemoryPercent": 6.6
     }
   ]
 }
