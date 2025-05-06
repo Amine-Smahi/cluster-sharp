@@ -1,0 +1,5 @@
+[
+  "rm -rf 7bc3df00be48a879e8ea4f5537bdfabf",
+  "git clone https://gist.github.com/7bc3df00be48a879e8ea4f5537bdfabf.git",
+  "cd 7bc3df00be48a879e8ea4f5537bdfabf/ && sudo docker compose up -d"
+]

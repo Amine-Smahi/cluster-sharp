@@ -8,7 +8,7 @@ public class ClusterSetup
     public Admin Admin { get; set; } = null!;
 
     [JsonPropertyName("members")]
-    public Member[] Members { get; set; } = [];
+    public Node[] Nodes { get; set; } = [];
     
-    public string ControllerHostname => Members.First(x => x.Role == Constants.Controller).Hostname;
+    public string ControllerHostname => Nodes.First(x => x.Role == Constants.Controller).Hostname;
 }
