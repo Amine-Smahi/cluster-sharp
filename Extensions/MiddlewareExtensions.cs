@@ -1,4 +1,4 @@
-namespace ClusterSharp.Api.ClusterSharp.Api.Helpers
+namespace ClusterSharp.Api.Extensions
 {
     public static class MiddlewareExtensions
     {

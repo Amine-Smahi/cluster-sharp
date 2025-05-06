@@ -1,6 +1,8 @@
 using System.Globalization;
 using Renci.SshNet;
-using ClusterSharp.Api.Models;
+using ClusterSharp.Api.Models.Commands;
+using ClusterSharp.Api.Models.Stats;
+using ClusterSharp.Api.Shared;
 
 namespace ClusterSharp.Api.Helpers;
 
@@ -129,13 +131,13 @@ public static class SshHelper
         return string.Empty;
     }
 
-    public static List<ContainerInfo>? GetDockerContainerStats(string hostname)
+    public static List<ContainerStats>? GetDockerContainerStats(string hostname)
     {
         var clusterInfo = ClusterHelper.GetClusterSetup();
         if (clusterInfo == null)
             return null;
         
-        var containers = new List<ContainerInfo>();
+        var containers = new List<ContainerStats>();
         try
         {
             using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
@@ -190,12 +192,12 @@ public static class SshHelper
                         var name = parts[0];
                         portMap.TryGetValue(name, out var externalPortRaw);
                         var externalPort = ExtractFirstHostPort(externalPortRaw ?? string.Empty);
-                        containers.Add(new ContainerInfo
+                        containers.Add(new ContainerStats
                         {
                             Name = name,
                             Cpu = parts[1],
-                            Memory = new MemStat { Value = memValue, Percentage = percent },
-                            Disk = new DiskStat { Value = parts[3], Percentage = 0 },
+                            Memory = new Stat { Value = memValue, Percentage = percent },
+                            Disk = new Stat { Value = parts[3], Percentage = 0 },
                             ExternalPort = externalPort
                         });
                     }
@@ -253,7 +255,7 @@ public static class SshHelper
                 var ramMatch = System.Text.RegularExpressions.Regex.Match(result, @"RAM\s+(\d+\.\d+)%");
                 if (ramMatch.Success && double.TryParse(ramMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var ram))
                 {
-                    stats.Memory = new MemStat 
+                    stats.Memory = new Stat 
                     { 
                         Value = $"{ram}%", 
                         Percentage = ram 
@@ -263,7 +265,7 @@ public static class SshHelper
                 var diskMatch = System.Text.RegularExpressions.Regex.Match(result, @"DISK\s+(\d+)%");
                 if (diskMatch.Success && double.TryParse(diskMatch.Groups[1].Value, CultureInfo.InvariantCulture, out var disk))
                 {
-                    stats.Disk = new DiskStat 
+                    stats.Disk = new Stat 
                     { 
                         Value = $"{disk}%", 
                         Percentage = disk 

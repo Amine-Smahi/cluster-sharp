@@ -1,11 +1,11 @@
-using ClusterSharp.Api;
 using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Helpers;
 using Yarp.ReverseProxy.Configuration;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 using System.Runtime;
-using ClusterSharp.Api.Models.Cluster;
+using ClusterSharp.Api.Extensions;
+using ClusterSharp.Api.Services;
 using FastEndpoints;
 
 var builder = WebApplication.CreateBuilder(args);

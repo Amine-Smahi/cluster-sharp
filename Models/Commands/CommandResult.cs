@@ -1,4 +1,4 @@
-namespace ClusterSharp.Api.Models;
+namespace ClusterSharp.Api.Models.Commands;
 
 public class CommandResult
 {

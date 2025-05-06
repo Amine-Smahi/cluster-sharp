@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Helpers;
+using ClusterSharp.Api.Models.Overview;
 
-namespace ClusterSharp.Api.Models.Cluster;
+namespace ClusterSharp.Api.Services;
 
 public class ClusterOverviewService
 {

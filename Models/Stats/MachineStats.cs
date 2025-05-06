@@ -1,8 +1,8 @@
-namespace ClusterSharp.Api.Models;
+namespace ClusterSharp.Api.Models.Stats;
 
 public class MachineStats
 {
     public double Cpu { get; set; }
-    public MemStat Memory { get; set; } = new();
-    public DiskStat Disk { get; set; } = new();
+    public Stat Memory { get; set; } = new();
+    public Stat Disk { get; set; } = new();
 }

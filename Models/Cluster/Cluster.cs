@@ -1,8 +1,9 @@
 using System.Text.Json.Serialization;
+using ClusterSharp.Api.Shared;
 
 namespace ClusterSharp.Api.Models.Cluster;
 
-public class ClusterSetup
+public class Cluster
 {
     [JsonPropertyName("admin")]
     public Admin Admin { get; set; } = null!;

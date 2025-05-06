@@ -1,23 +1,26 @@
 using ClusterSharp.Api.Helpers;
+using ClusterSharp.Api.Shared;
 using FastEndpoints;
-using Microsoft.AspNetCore.Http;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class DeployRequest
-{
-    public int Replicas { get; set; }
-}
-
-public class DeployEndpoint : Endpoint<DeployRequest>
+public class DeployEndpoint : EndpointWithoutRequest
 {
     public override void Configure()
     {
-        Get("/cluster/deploy/{Replicas}");
+        Get("/cluster/deploy/{replicas}");
         AllowAnonymous();
+        Summary(s =>
+        {
+            s.Summary = "Deploy to workers";
+            s.Description = "Deploys code to the specified number of worker nodes";
+            s.ExampleRequest = new { replicas = 3 };
+            s.ResponseExamples[200] = "Deployment successful";
+            s.Params["replicas"] = "Number of worker nodes to deploy to";
+        });
     }
 
-    public override async Task HandleAsync(DeployRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
         if (!GithubHelper.IsValidSource(HttpContext.Request.Host.Value!))
         {
@@ -25,9 +28,10 @@ public class DeployEndpoint : Endpoint<DeployRequest>
             return;
         }
 
-        if (req.Replicas == 0)
+        var replicasStr = Route<string>("replicas");
+        if (!int.TryParse(replicasStr, out var replicas) || replicas == 0)
         {
-            AddError(nameof(req.Replicas), "Replicas must be greater than 0");
+            AddError("replicas", "Replicas must be a valid number greater than 0");
             await SendErrorsAsync(StatusCodes.Status400BadRequest, ct);
             return;
         }
@@ -40,16 +44,17 @@ public class DeployEndpoint : Endpoint<DeployRequest>
             return;
         }
 
-        if (req.Replicas > workers.Count)
+        if (replicas > workers.Count)
         {
-            await SendAsync($"Not enough workers available. {workers.Count} available, {req.Replicas} requested.", 
+            await SendAsync($"Not enough workers available. {workers.Count} available, {replicas} requested.", 
                 StatusCodes.Status400BadRequest, ct);
             return;
         }
 
-        workers = workers.Take(req.Replicas).ToList();
+        workers = workers.Take(replicas).ToList();
 
         var repo = GithubHelper.GetRepoName(HttpContext.Request.Host.Value!);
+        var repo = "";
         foreach (var worker in workers)
         {
             var results = SshHelper.ExecuteCommands(worker, CommandHelper.GetDeploymentCommands(repo));

@@ -1,5 +1,5 @@
 [
-  "rm -rf 7bc3df00be48a879e8ea4f5537bdfabf",
-  "git clone https://gist.github.com/7bc3df00be48a879e8ea4f5537bdfabf.git",
-  "cd 7bc3df00be48a879e8ea4f5537bdfabf/ && sudo docker compose up -d"
+  "rm -rf <repository>",
+  "git clone https://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@github.com/Amine-Smahi/<repository>.git",
+  "cd cluster/ && sudo docker compose up -d"
 ]

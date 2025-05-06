@@ -1,14 +1,15 @@
-using ClusterSharp.Api.Models;
 using ClusterSharp.Api.Models.Cluster;
-using ClusterNode = ClusterSharp.Api.Models.Cluster.ClusterNode;
+using ClusterSharp.Api.Models.Overview;
+using ClusterSharp.Api.Models.Stats;
+using ClusterSharp.Api.Shared;
 
 namespace ClusterSharp.Api.Helpers;
 
 public static class ClusterHelper
 {
-    public static ClusterSetup? GetClusterSetup()
+    public static Cluster? GetClusterSetup()
     {
-        var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);
+        var result = FileHelper.GetContentFromFile<Cluster>("Assets/cluster-setup.json", out var errorMessage);
         ;
         if (result == null)
             Console.WriteLine(errorMessage);
@@ -17,21 +18,21 @@ public static class ClusterHelper
 
     public static List<string> GetWorkers()
     {
-        var result = FileHelper.GetContentFromFile<ClusterSetup>("Assets/cluster.json", out var errorMessage);
+        var result = FileHelper.GetContentFromFile<Cluster>("Assets/cluster-setup.json", out var errorMessage);
         if (result == null)
         {
             Console.WriteLine(errorMessage);
             return [];
         }
 
-        return result.Members.Where(m => m.Role == Constants.Worker)
+        return result.Nodes.Where(m => m.Role == Constants.Worker)
             .Select(x => x.Hostname)
             .ToList();
     }
 
     public static void GenerateClusterOverview()
     {
-        var clusterInfo = FileHelper.GetContentFromFile<List<ClusterNode>>("Assets/cluster-info.json", out var errorMessage);
+        var clusterInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/cluster-info.json", out var errorMessage);
         if (clusterInfo == null)
         {
             Console.WriteLine(errorMessage);

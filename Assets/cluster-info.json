@@ -1,28 +1,55 @@
 [
   {
-    "Hostname": "control-plane",
-    "Role": null,
+    "hostname": "control-plane",
+    "role": null,
     "MachineStats": {
-      "Cpu": 2.4,
+      "Cpu": 0,
       "Memory": {
-        "Value": "6,4%",
-        "percentage": 6.4
+        "Value": "6,7%",
+        "percentage": 6.7
       },
       "Disk": {
         "Value": "7%",
         "percentage": 7
       }
     },
-    "Containers": []
+    "Containers": [
+      {
+        "Name": "registry",
+        "Cpu": "0.00%",
+        "Memory": {
+          "Value": "5.391MiB / 11.43GiB",
+          "percentage": 0.05
+        },
+        "Disk": {
+          "Value": "0B / 0B",
+          "percentage": 0
+        },
+        "external_port": "5000"
+      },
+      {
+        "Name": "amine.com",
+        "Cpu": "0.00%",
+        "Memory": {
+          "Value": "2.945MiB / 11.43GiB",
+          "percentage": 0.03
+        },
+        "Disk": {
+          "Value": "0B / 0B",
+          "percentage": 0
+        },
+        "external_port": "8080"
+      }
+    ]
   },
   {
-    "Hostname": "node1",
-    "Role": null,
+    "hostname": "node1",
+    "role": null,
     "MachineStats": {
-      "Cpu": 7,
+      "Cpu": 2.4,
       "Memory": {
-        "Value": "6,6%",
-        "percentage": 6.6
+        "Value": "6,5%",
+        "percentage": 6.5
       },
       "Disk": {
         "Value": "6%",
@@ -31,10 +58,23 @@
     },
     "Containers": [
       {
+        "Name": "amine.com",
+        "Cpu": "0.00%",
+        "Memory": {
+          "Value": "5.121MiB / 11.43GiB",
+          "percentage": 0.04
+        },
+        "Disk": {
+          "Value": "0B / 0B",
+          "percentage": 0
+        },
+        "external_port": "8080"
+      },
+      {
         "Name": "amina.com",
         "Cpu": "0.00%",
         "Memory": {
-          "Value": "3.488MiB / 11.43GiB",
+          "Value": "3.484MiB / 11.43GiB",
           "percentage": 0.03
         },
         "Disk": {
@@ -42,19 +82,6 @@
           "percentage": 0
         },
         "external_port": "8090"
-      },
-      {
-        "Name": "amine.com",
-        "Cpu": "0.00%",
-        "Memory": {
-          "Value": "5.938MiB / 11.43GiB",
-          "percentage": 0.05
-        },
-        "Disk": {
-          "Value": "16.4kB / 0B",
-          "percentage": 0
-        },
-        "external_port": "8080"
       }
     ]
   }

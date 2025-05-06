@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Helpers;
-using ClusterSharp.Api.Models;
 using ClusterSharp.Api.Models.Cluster;
+using ClusterSharp.Api.Models.Stats;
+using ClusterSharp.Api.Services;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
@@ -16,7 +17,7 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
             
             try
             {
-                var clusterInfo = new List<ClusterNode>();
+                var clusterInfo = new List<Node>();
                 var cluster = ClusterHelper.GetClusterSetup();
                 if (cluster == null)
                 {
@@ -24,7 +25,7 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                     continue;
                 }
                 
-                foreach (var worker in cluster.Members.Select(x => x.Hostname))
+                foreach (var worker in cluster.Nodes.Select(x => x.Hostname))
                 {
                     var machineStats = SshHelper.GetMachineStats(worker);
                     if (machineStats == null)
@@ -40,23 +41,23 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                         continue;
                     }
 
-                    clusterInfo.Add(new ClusterNode
+                    clusterInfo.Add(new Node
                     {
                         Hostname = worker,
                         MachineStats = new MachineStats
                         {
                             Cpu = machineStats.Cpu,
-                            Memory = new MemStat
+                            Memory = new Stat
                                 { Value = machineStats.Memory.Value, Percentage = machineStats.Memory.Percentage },
-                            Disk = new DiskStat
+                            Disk = new Stat
                                 { Value = machineStats.Disk.Value, Percentage = machineStats.Disk.Percentage }
                         },
-                        Containers = containers.Select(c => new ContainerInfo
+                        Containers = containers.Select(c => new ContainerStats
                         {
                             Name = c.Name,
                             Cpu = c.Cpu,
-                            Memory = new MemStat { Value = c.Memory.Value, Percentage = c.Memory.Percentage },
-                            Disk = new DiskStat { Value = c.Disk.Value, Percentage = c.Disk.Percentage },
+                            Memory = new Stat { Value = c.Memory.Value, Percentage = c.Memory.Percentage },
+                            Disk = new Stat { Value = c.Disk.Value, Percentage = c.Disk.Percentage },
                             ExternalPort = c.ExternalPort
                         }).ToList()
                     });

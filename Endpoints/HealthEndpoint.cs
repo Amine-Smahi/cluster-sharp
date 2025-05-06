@@ -1,7 +1,7 @@
 using FastEndpoints;
 using Yarp.ReverseProxy.Configuration;
 
-namespace ClusterSharp.Api.Endpoints.Health.Endpoints;
+namespace ClusterSharp.Api.Endpoints;
 
 public class HealthResponse
 {

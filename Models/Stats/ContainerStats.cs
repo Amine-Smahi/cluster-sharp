@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
-using ClusterSharp.Api.Models.Stats;
 
-namespace ClusterSharp.Api.Models;
+namespace ClusterSharp.Api.Models.Stats;
 
 public class ContainerStats
 {

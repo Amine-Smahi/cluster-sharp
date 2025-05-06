@@ -15,10 +15,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Include="Assets\cluster.json">
+      <None Include="Assets\cluster-setup.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Include="Assets\deploy-commands.json">
+      <None Include="Assets\deploy-project-commands.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
       <None Include="Assets\overview.json">

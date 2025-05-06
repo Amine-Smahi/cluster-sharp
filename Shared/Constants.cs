@@ -1,4 +1,4 @@
-namespace ClusterSharp.Api;
+namespace ClusterSharp.Api.Shared;
 
 public class Constants
 {

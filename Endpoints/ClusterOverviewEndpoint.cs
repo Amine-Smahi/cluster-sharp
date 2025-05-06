@@ -1,6 +1,6 @@
 using FastEndpoints;
-using ClusterSharp.Api.Models.Cluster;
-using ClusterSharp.Api.Models;
+using ClusterSharp.Api.Models.Overview;
+using ClusterSharp.Api.Services;
 
 namespace ClusterSharp.Api.Endpoints;
 

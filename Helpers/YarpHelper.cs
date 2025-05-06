@@ -1,7 +1,5 @@
-using ClusterSharp.Api.Models.Cluster;
+using ClusterSharp.Api.Services;
 using Yarp.ReverseProxy.Configuration;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace ClusterSharp.Api.Helpers;
 
@@ -171,8 +169,7 @@ public static class YarpHelper
 
         try
         {
-            var proxyConfigProvider = application.Services.GetRequiredService<IProxyConfigProvider>() as InMemoryConfigProvider;
-            if (proxyConfigProvider != null)
+            if (application.Services.GetRequiredService<IProxyConfigProvider>() is InMemoryConfigProvider proxyConfigProvider)
             {
                 var currentConfig = proxyConfigProvider.GetConfig();
                 
@@ -180,7 +177,7 @@ public static class YarpHelper
                     AreClustersEqual(currentConfig.Clusters, clusterConfigs)) return;
                 
                 proxyConfigProvider.Update(routeConfigs, clusterConfigs);
-                Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} with {routeConfigs.Count} routes");
+                Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} for {routeConfigs.Count} apps");
             }
         }
         catch (Exception ex)
@@ -313,13 +310,7 @@ public static class YarpHelper
             
         if (list1.Count != list2.Count)
             return false;
-            
-        for (int i = 0; i < list1.Count; i++)
-        {
-            if (!EqualityComparer<T>.Default.Equals(list1[i], list2[i]))
-                return false;
-        }
-        
-        return true;
+
+        return !list1.Where((t, i) => !EqualityComparer<T>.Default.Equals(t, list2[i])).Any();
     }
 } 

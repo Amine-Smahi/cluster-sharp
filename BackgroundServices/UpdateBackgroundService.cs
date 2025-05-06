@@ -10,8 +10,11 @@ namespace ClusterSharp.Api.BackgroundServices
             {
                 try
                 {
-                    foreach (var member in ClusterHelper.GetClusterSetup()?.Members!)
-                        SshHelper.ExecuteCommands(member.Hostname, CommandHelper.GetClusterUpdateCommands());
+                    foreach (var member in ClusterHelper.GetClusterSetup()?.Nodes!)
+                    {
+                        SshHelper.ExecuteCommands(member.Hostname, CommandHelper.GetUpdateMachineCommands());
+                        Console.WriteLine($"Machine {member.Hostname} updated successfully.");
+                    }
                 }
                 catch (Exception ex)
                 {

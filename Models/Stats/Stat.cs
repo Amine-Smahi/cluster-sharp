@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace ClusterSharp.Api.Models;
+namespace ClusterSharp.Api.Models.Stats;
 
-public class DiskStat
+public class Stat
 {
     public string? Value { get; set; }
     
