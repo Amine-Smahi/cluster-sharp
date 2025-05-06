@@ -10,6 +10,9 @@ public static class YarpHelper
     private static DateTime _lastUpdateTime = DateTime.MinValue;
     private static readonly TimeSpan MinUpdateInterval = TimeSpan.FromSeconds(5);
     private static bool _updatePending;
+    private static string _lastContainerHash = string.Empty;
+
+    public static DateTime LastUpdateTime => _lastUpdateTime;
 
     public static void SetupYarpRouteUpdates(WebApplication app, ClusterOverviewService overviewService)
     {
@@ -30,7 +33,7 @@ public static class YarpHelper
 
         try
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             if (now - _lastUpdateTime < MinUpdateInterval)
             {
                 _updatePending = true;
@@ -40,7 +43,7 @@ public static class YarpHelper
             }
 
             UpdateYarpRoutesInternal(_app);
-            _lastUpdateTime = DateTime.UtcNow;
+            _lastUpdateTime = DateTime.Now;
             _updatePending = false;
         }
         finally
@@ -59,9 +62,9 @@ public static class YarpHelper
             if (_updatePending)
             {
                 UpdateYarpRoutesInternal(_app);
-                _lastUpdateTime = DateTime.UtcNow;
+                _lastUpdateTime = DateTime.Now;
                 _updatePending = false;
-                Console.WriteLine($"Processed pending YARP routes update at {DateTime.UtcNow:HH:mm:ss}");
+                Console.WriteLine($"Processed pending YARP routes update at {DateTime.Now:HH:mm:ss}");
             }
         }
         catch (Exception ex)
@@ -85,7 +88,7 @@ public static class YarpHelper
         try
         {
             UpdateYarpRoutesInternal(application);
-            _lastUpdateTime = DateTime.UtcNow;
+            _lastUpdateTime = DateTime.Now;
             _updatePending = false;
         }
         catch (Exception ex)
@@ -102,6 +105,10 @@ public static class YarpHelper
     {
         var overviewService = application.Services.GetRequiredService<ClusterOverviewService>();
         var containers = overviewService.Overview.Containers;
+        var currentContainerHash = GenerateContainerConfigHash(containers);
+        if (currentContainerHash == _lastContainerHash)
+            return;
+        
         var routeConfigs = new List<RouteConfig>(containers.Count);
         var clusterConfigs = new List<ClusterConfig>(containers.Count);
 
@@ -174,10 +181,15 @@ public static class YarpHelper
                 var currentConfig = proxyConfigProvider.GetConfig();
                 
                 if (AreRoutesEqual(currentConfig.Routes, routeConfigs) && 
-                    AreClustersEqual(currentConfig.Clusters, clusterConfigs)) return;
+                    AreClustersEqual(currentConfig.Clusters, clusterConfigs)) 
+                {
+                    Console.WriteLine($"YARP configuration is unchanged, skipping update at {DateTime.Now:HH:mm:ss}");
+                    return;
+                }
                 
                 proxyConfigProvider.Update(routeConfigs, clusterConfigs);
-                Console.WriteLine($"Yarp routes updated at {DateTime.UtcNow:HH:mm:ss} for {routeConfigs.Count} apps");
+                _lastContainerHash = currentContainerHash;
+                Console.WriteLine($"Yarp routes updated at {DateTime.Now:HH:mm:ss} for {routeConfigs.Count} apps");
             }
         }
         catch (Exception ex)
@@ -186,29 +198,55 @@ public static class YarpHelper
         }
     }
     
+    private static string GenerateContainerConfigHash(List<Models.Overview.Container> containers)
+    {
+        var hash = string.Join("|", 
+            containers.OrderBy(c => c.Name).Select(c => 
+                $"{c.Name}:{c.ExternalPort}:{string.Join(",", c.Hosts.OrderBy(h => h))}"));
+        return hash;
+    }
+    
     private static bool AreRoutesEqual(IReadOnlyList<RouteConfig> existingRoutes, IReadOnlyList<RouteConfig> newRoutes)
     {
         if (existingRoutes.Count != newRoutes.Count)
+        {
+            Console.WriteLine($"Route count different: existing={existingRoutes.Count}, new={newRoutes.Count}");
             return false;
+        }
         
         var existingRouteMap = existingRoutes.ToDictionary(r => r.RouteId);
         
         foreach (var newRoute in newRoutes)
         {
             if (!existingRouteMap.TryGetValue(newRoute.RouteId, out var existingRoute))
+            {
+                Console.WriteLine($"Route ID not found: {newRoute.RouteId}");
                 return false;
+            }
                 
             if (existingRoute.ClusterId != newRoute.ClusterId)
+            {
+                Console.WriteLine($"Cluster ID different for route {newRoute.RouteId}: existing={existingRoute.ClusterId}, new={newRoute.ClusterId}");
                 return false;
+            }
                 
             if (!AreMatchesEqual(existingRoute.Match, newRoute.Match))
+            {
+                Console.WriteLine($"Matches different for route {newRoute.RouteId}");
                 return false;
+            }
                 
             if (existingRoute.Timeout != newRoute.Timeout)
+            {
+                Console.WriteLine($"Timeout different for route {newRoute.RouteId}: existing={existingRoute.Timeout}, new={newRoute.Timeout}");
                 return false;
+            }
                 
             if (!AreTransformsEqual(existingRoute.Transforms!, newRoute.Transforms!))
+            {
+                Console.WriteLine($"Transforms different for route {newRoute.RouteId}");
                 return false;
+            }
         }
         
         return true;
@@ -220,13 +258,22 @@ public static class YarpHelper
             return true;
             
         if (existing == null || @new == null)
+        {
+            Console.WriteLine("One match is null, the other is not");
             return false;
+        }
             
         if (existing.Path != @new.Path)
+        {
+            Console.WriteLine($"Path different: existing={existing.Path}, new={@new.Path}");
             return false;
+        }
             
         if (!AreListsEqual(existing.Hosts, @new.Hosts))
+        {
+            Console.WriteLine("Hosts different");
             return false;
+        }
             
         return true;
     }
@@ -235,7 +282,10 @@ public static class YarpHelper
                                          IReadOnlyList<IReadOnlyDictionary<string, string>> @new)
     {
         if (existing.Count != @new.Count)
+        {
+            Console.WriteLine($"Transform count different: existing={existing.Count}, new={@new.Count}");
             return false;
+        }
             
         for (int i = 0; i < existing.Count; i++)
         {
@@ -243,12 +293,18 @@ public static class YarpHelper
             var newDict = @new[i];
             
             if (existingDict.Count != newDict.Count)
+            {
+                Console.WriteLine($"Transform dict count different at index {i}: existing={existingDict.Count}, new={newDict.Count}");
                 return false;
+            }
                 
             foreach (var kvp in existingDict)
             {
                 if (!newDict.TryGetValue(kvp.Key, out var value) || value != kvp.Value)
+                {
+                    Console.WriteLine($"Transform dict value different for key {kvp.Key}: existing={kvp.Value}, new={value ?? "null"}");
                     return false;
+                }
             }
         }
         
@@ -258,20 +314,32 @@ public static class YarpHelper
     private static bool AreClustersEqual(IReadOnlyList<ClusterConfig> existingClusters, IReadOnlyList<ClusterConfig> newClusters)
     {
         if (existingClusters.Count != newClusters.Count)
+        {
+            Console.WriteLine($"Cluster count different: existing={existingClusters.Count}, new={newClusters.Count}");
             return false;
+        }
             
         var existingClusterMap = existingClusters.ToDictionary(c => c.ClusterId);
         
         foreach (var newCluster in newClusters)
         {
             if (!existingClusterMap.TryGetValue(newCluster.ClusterId, out var existingCluster))
+            {
+                Console.WriteLine($"Cluster ID not found: {newCluster.ClusterId}");
                 return false;
+            }
                 
             if (existingCluster.LoadBalancingPolicy != newCluster.LoadBalancingPolicy)
+            {
+                Console.WriteLine($"LoadBalancingPolicy different for cluster {newCluster.ClusterId}: existing={existingCluster.LoadBalancingPolicy}, new={newCluster.LoadBalancingPolicy}");
                 return false;
+            }
                 
             if (!AreDestinationsEqual(existingCluster.Destinations!, newCluster.Destinations!))
+            {
+                Console.WriteLine($"Destinations different for cluster {newCluster.ClusterId}");
                 return false;
+            }
         }
         
         return true;
@@ -281,20 +349,32 @@ public static class YarpHelper
                                             IReadOnlyDictionary<string, DestinationConfig> @new)
     {
         if (existing.Count != @new.Count)
+        {
+            Console.WriteLine($"Destination count different: existing={existing.Count}, new={@new.Count}");
             return false;
+        }
             
         foreach (var key in existing.Keys)
         {
             if (!@new.TryGetValue(key, out var newDestination))
+            {
+                Console.WriteLine($"Destination key not found: {key}");
                 return false;
+            }
                 
             var existingDestination = existing[key];
             
             if (existingDestination.Address != newDestination.Address)
+            {
+                Console.WriteLine($"Destination address different for {key}: existing={existingDestination.Address}, new={newDestination.Address}");
                 return false;
+            }
                 
             if (existingDestination.Health != newDestination.Health)
+            {
+                Console.WriteLine($"Destination health different for {key}: existing={existingDestination.Health}, new={newDestination.Health}");
                 return false;
+            }
         }
         
         return true;
@@ -306,11 +386,26 @@ public static class YarpHelper
             return true;
             
         if (list1 == null || list2 == null)
+        {
+            Console.WriteLine("One list is null, the other is not");
             return false;
+        }
             
         if (list1.Count != list2.Count)
+        {
+            Console.WriteLine($"List count different: list1={list1.Count}, list2={list2.Count}");
             return false;
+        }
 
-        return !list1.Where((t, i) => !EqualityComparer<T>.Default.Equals(t, list2[i])).Any();
+        for (int i = 0; i < list1.Count; i++)
+        {
+            if (!EqualityComparer<T>.Default.Equals(list1[i], list2[i]))
+            {
+                Console.WriteLine($"List item different at index {i}: list1={list1[i]}, list2={list2[i]}");
+                return false;
+            }
+        }
+        
+        return true;
     }
 } 

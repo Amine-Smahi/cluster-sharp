@@ -1,4 +1,5 @@
 using System.Globalization;
+using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 
@@ -86,6 +87,14 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
     </style>
 </head>
 <body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 5s' hx-swap='outerHTML'>        
+        <div class='row mb-3'>
+            <div class='col-12 mb-3'>
+                <div class='alert alert-info'>
+                    <strong>YARP Routes:</strong> Last updated at {(YarpHelper.LastUpdateTime == DateTime.MinValue ? "Never" : YarpHelper.LastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss"))}
+                </div>
+            </div>
+        </div>
+        
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
                 <h2>Machines</h2>

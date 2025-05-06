@@ -54,7 +54,6 @@ public class DeployEndpoint : EndpointWithoutRequest
         workers = workers.Take(replicas).ToList();
 
         var repo = GithubHelper.GetRepoName(HttpContext.Request.Host.Value!);
-        var repo = "";
         foreach (var worker in workers)
         {
             var results = SshHelper.ExecuteCommands(worker, CommandHelper.GetDeploymentCommands(repo));
