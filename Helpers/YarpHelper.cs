@@ -1,3 +1,4 @@
+using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Services;
 using Yarp.ReverseProxy.Configuration;
 
@@ -12,13 +13,81 @@ public static class YarpHelper
     private static bool _updatePending;
     private static string _lastContainerHash = string.Empty;
 
+    // Request tracking
+    private static long _requestCount = 0;
+    private static DateTime _lastRequestCountReset = DateTime.Now;
+    private static readonly List<RequestStats> _requestsHistory = new(100);
+    private static readonly SemaphoreSlim _statsLock = new(1, 1);
+    private static Timer? _requestStatsTimer;
+    
     public static DateTime LastUpdateTime => _lastUpdateTime;
+    public static IReadOnlyList<RequestStats> RequestsHistory => _requestsHistory;
 
     public static void SetupYarpRouteUpdates(WebApplication app, ClusterOverviewService overviewService)
     {
         _app = app;
         overviewService.OverviewUpdated += OnOverviewUpdated;
         UpdateYarpRoutes(app);
+        
+        // Set up middleware for tracking requests
+        app.Use(async (context, next) =>
+        {
+            Interlocked.Increment(ref _requestCount);
+            await next.Invoke();
+        });
+        
+        // Start timer to calculate requests per second
+        _requestStatsTimer = new Timer(CalculateRequestsPerSecond, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+    
+    private static void CalculateRequestsPerSecond(object? state)
+    {
+        var now = DateTime.Now;
+        var elapsedSeconds = (now - _lastRequestCountReset).TotalSeconds;
+        
+        if (elapsedSeconds > 0)
+        {
+            var count = Interlocked.Exchange(ref _requestCount, 0);
+            var requestsPerSecond = count / elapsedSeconds;
+            
+            _statsLock.Wait();
+            try
+            {
+                _requestsHistory.Add(new RequestStats
+                {
+                    Timestamp = now,
+                    RequestsPerSecond = Math.Round(requestsPerSecond, 2)
+                });
+                
+                // Keep only the last 100 data points
+                if (_requestsHistory.Count > 100)
+                {
+                    _requestsHistory.RemoveAt(0);
+                }
+            }
+            finally
+            {
+                _statsLock.Release();
+            }
+            
+            _lastRequestCountReset = now;
+        }
+    }
+    
+    // Get the latest request stats for chart display
+    public static RequestStats GetLatestRequestStats()
+    {
+        _statsLock.Wait();
+        try
+        {
+            return _requestsHistory.Count > 0 
+                ? _requestsHistory[^1] 
+                : new RequestStats { Timestamp = DateTime.Now, RequestsPerSecond = 0 };
+        }
+        finally
+        {
+            _statsLock.Release();
+        }
     }
     
     private static void OnOverviewUpdated(object? sender, EventArgs e)
@@ -127,7 +196,7 @@ public static class YarpHelper
                 {
                     new() { { "ResponseHeader", "Cache-Control" }, { "Append", "public, max-age=120" } }
                 },
-                Timeout = TimeSpan.FromSeconds(30)
+                Timeout = TimeSpan.FromMinutes(2)
             });
 
             var destinationCapacity = container.Hosts.Count;
@@ -158,15 +227,22 @@ public static class YarpHelper
                     {
                         Enabled = true,
                         Interval = TimeSpan.FromSeconds(10),
-                        Timeout = TimeSpan.FromSeconds(10),
+                        Timeout = TimeSpan.FromSeconds(30),
                         Policy = "ConsecutiveFailures"
+                    },
+                    Passive = new PassiveHealthCheckConfig
+                    {
+                        Enabled = true,
+                        Policy = "TransportFailureRate",
+                        ReactivationPeriod = TimeSpan.FromSeconds(5)
                     }
                 },
                 HttpClient = new HttpClientConfig
                 {
                     MaxConnectionsPerServer = 100,
                     DangerousAcceptAnyServerCertificate = false,
-                    RequestHeaderEncoding = "utf-8"
+                    RequestHeaderEncoding = "utf-8",
+                    SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
                 }
             });
         }

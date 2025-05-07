@@ -1,31 +1,14 @@
 {
   "Containers": [
     {
-      "Name": "registry",
+      "Name": "amine.local",
       "Replicas": 1,
-      "ExternalPort": "5000",
+      "ExternalPort": "8800",
       "ContainerOnHostStatsList": [
-        {
-          "Host": "control-plane",
-          "Cpu": 0,
-          "Memory": 0.13
-        }
-      ]
-    },
-    {
-      "Name": "amine.com",
-      "Replicas": 2,
-      "ExternalPort": "8080",
-      "ContainerOnHostStatsList": [
-        {
-          "Host": "control-plane",
-          "Cpu": 0,
-          "Memory": 0.26
-        },
         {
           "Host": "node1",
           "Cpu": 0,
-          "Memory": 0.2
+          "Memory": 0.03
         }
       ]
     },
@@ -44,14 +27,9 @@
   ],
   "Machines": [
     {
-      "Hostname": "control-plane",
-      "Cpu": 0,
-      "Memory": 7.3
-    },
-    {
       "Hostname": "node1",
-      "Cpu": 7,
-      "Memory": 7.2
+      "Cpu": 0,
+      "Memory": 6.9
     }
   ]
 }

@@ -27,6 +27,13 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         string cpuDataPoints = "[]";
         string memoryDataPoints = "[]";
         string timeLabels = "[]";
+        string requestsPerSecondDataPoints = "[]";
+        string requestsTimeLabels = "[]";
+
+        // Get the latest request stats
+        var requestStats = YarpHelper.GetLatestRequestStats();
+        requestsPerSecondDataPoints = $"[{requestStats.RequestsPerSecond.ToString(CultureInfo.InvariantCulture)}]";
+        requestsTimeLabels = $"['{requestStats.Timestamp.ToString("HH:mm:ss")}']";
 
         if (overview?.Machines != null && overview.Machines.Any())
         {
@@ -108,7 +115,8 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         }}
     </style>
 </head>
-<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 15s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
+<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
+    <div class='container-fluid h-100'>
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
                 <div class='alert alert-info'>
@@ -118,14 +126,31 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         </div>
         
         <div class='row mb-4'>
-            <div class='col-12 mb-3'>
-                <h2>Cluster</h2>
+            <div class='col-6'>
+                <div class='col-12 mb-3'>
+                    <h2>Request Statistics</h2>
+                </div>
+                <div class='col-12 mb-3'>
+                    <div class='card bg-dark-subtle shadow-sm'>
+                        <div class='card-body'>
+                            <div class='chart-container'>
+                                <canvas id='requestsChart'></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class='col-12 mb-3'>
-                <div class='card bg-dark-subtle shadow-sm'>
-                    <div class='card-body'>
-                        <div class='chart-container'>
-                            <canvas id='resourceChart'></canvas>
+            
+            <div class='col-6'>
+                <div class='col-12 mb-3'>
+                    <h2>Cluster Resources</h2>
+                </div>
+                <div class='col-12 mb-3'>
+                    <div class='card bg-dark-subtle shadow-sm'>
+                        <div class='card-body'>
+                            <div class='chart-container'>
+                                <canvas id='resourceChart'></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -207,14 +232,21 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             const newCpuData = {cpuDataPoints};
             const newMemoryData = {memoryDataPoints};
             const newTimeLabel = {timeLabels};
+            const newRequestsData = {requestsPerSecondDataPoints};
+            const newRequestsTimeLabel = {requestsTimeLabels};
             const MAX_DATA_POINTS = 50;
             let cpuData = [];
             let memoryData = [];
             let labels = [];
+            let requestsData = [];
+            let requestsLabels = [];
             try {{
                 const storedCpuData = JSON.parse(localStorage.getItem('cpuData')) || [];
                 const storedMemoryData = JSON.parse(localStorage.getItem('memoryData')) || [];
                 const storedLabels = JSON.parse(localStorage.getItem('timeLabels')) || [];
+                const storedRequestsData = JSON.parse(localStorage.getItem('requestsData')) || [];
+                const storedRequestsLabels = JSON.parse(localStorage.getItem('requestsTimeLabels')) || [];
+                
                 if(newCpuData.length > 0 && newMemoryData.length > 0 && newTimeLabel.length > 0) {{
                     if(storedLabels.length === 0 || storedLabels[storedLabels.length-1] !== newTimeLabel[0]) {{
                         cpuData = [...storedCpuData, ...newCpuData].slice(-MAX_DATA_POINTS);
@@ -233,17 +265,40 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                     memoryData = storedMemoryData;
                     labels = storedLabels;
                 }}
+                
+                if(newRequestsData.length > 0 && newRequestsTimeLabel.length > 0) {{
+                    if(storedRequestsLabels.length === 0 || storedRequestsLabels[storedRequestsLabels.length-1] !== newRequestsTimeLabel[0]) {{
+                        requestsData = [...storedRequestsData, ...newRequestsData].slice(-MAX_DATA_POINTS);
+                        requestsLabels = [...storedRequestsLabels, ...newRequestsTimeLabel].slice(-MAX_DATA_POINTS);
+                        localStorage.setItem('requestsData', JSON.stringify(requestsData));
+                        localStorage.setItem('requestsTimeLabels', JSON.stringify(requestsLabels));
+                    }} else {{
+                        requestsData = storedRequestsData;
+                        requestsLabels = storedRequestsLabels;
+                    }}
+                }} else {{
+                    requestsData = storedRequestsData;
+                    requestsLabels = storedRequestsLabels;
+                }}
             }} catch (e) {{
                 console.error('Error loading chart data:', e);
                 localStorage.removeItem('cpuData');
                 localStorage.removeItem('memoryData');
                 localStorage.removeItem('timeLabels');
+                localStorage.removeItem('requestsData');
+                localStorage.removeItem('requestsTimeLabels');
             }}
             window.resourceChart = window.resourceChart || null;
+            window.requestsChart = window.requestsChart || null;
             window.initCharts = function() {{
                 if(window.resourceChart && typeof window.resourceChart.destroy === 'function') {{
                     window.resourceChart.destroy();
                     window.resourceChart = null;
+                }}
+                
+                if(window.requestsChart && typeof window.requestsChart.destroy === 'function') {{
+                    window.requestsChart.destroy();
+                    window.requestsChart = null;
                 }}
                 
                 const resourceCanvas = document.getElementById('resourceChart');
@@ -288,7 +343,45 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                                 }}
                             }},
                             animation: {{
-                                duration: 500
+                                duration: 0
+                            }}
+                        }}
+                    }});
+                }}
+                
+                const requestsCanvas = document.getElementById('requestsChart');
+                if(requestsCanvas) {{
+                    const requestsCtx = requestsCanvas.getContext('2d');
+                    window.requestsChart = new Chart(requestsCtx, {{
+                        type: 'line',
+                        data: {{
+                            labels: requestsLabels,
+                            datasets: [
+                                {{
+                                    label: 'Requests Per Second',
+                                    data: requestsData,
+                                    borderColor: 'rgba(54, 162, 235, 1)',
+                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                    borderWidth: 2,
+                                    tension: 0.2,
+                                    fill: true
+                                }}
+                            ]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {{
+                                y: {{
+                                    beginAtZero: false,
+                                    title: {{
+                                        display: true,
+                                        text: 'Requests/sec'
+                                    }}
+                                }}
+                            }},
+                            animation: {{
+                                duration: 0
                             }}
                         }}
                     }});

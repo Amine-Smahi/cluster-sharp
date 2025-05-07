@@ -68,6 +68,11 @@ builder.Services.AddHttpClient("YARP")
         PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5),
         EnableMultipleHttp2Connections = true,
         UseProxy = false,
+        ResponseDrainTimeout = TimeSpan.FromMinutes(1),
+    })
+    .ConfigureHttpClient(client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(2);
     });
 
 builder.Services.AddReverseProxy()
@@ -81,6 +86,7 @@ builder.Services.AddReverseProxy()
             socketHandler.PooledConnectionLifetime = TimeSpan.FromMinutes(10);
             socketHandler.PooledConnectionIdleTimeout = TimeSpan.FromMinutes(5);
             socketHandler.UseProxy = false;
+            socketHandler.ResponseDrainTimeout = TimeSpan.FromMinutes(1);
         }
     });
 
@@ -110,4 +116,3 @@ YarpHelper.SetupYarpRouteUpdates(app, overviewService);
 app.MapReverseProxy();
 
 app.Run("http://0.0.0.0:80");
-return;
