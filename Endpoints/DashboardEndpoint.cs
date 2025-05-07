@@ -23,15 +23,33 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
     {
         var overview = overviewService.Overview;
 
+        // Prepare data for charts
+        string cpuDataPoints = "[]";
+        string memoryDataPoints = "[]";
+        string timeLabels = "[]";
+
+        if (overview?.Machines != null && overview.Machines.Any())
+        {
+            // Calculate average CPU and memory across all machines
+            var avgCpu = (int)overview.Machines.Average(m => m.Cpu);
+            var avgMemory = (int)overview.Machines.Average(m => m.Memory);
+            
+            // Format for Chart.js
+            cpuDataPoints = $"[{avgCpu.ToString(CultureInfo.InvariantCulture)}]";
+            memoryDataPoints = $"[{avgMemory.ToString(CultureInfo.InvariantCulture)}]";
+            timeLabels = $"['{DateTime.Now.ToString("HH:mm:ss")}']";
+        }
+
         var html = $@"
 <!DOCTYPE html>
-<html lang='en' data-bs-theme=""dark"">
+<html lang='en' class='h-100' data-bs-theme=""dark"">
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <title>ClusterSharp Dashboard</title>
     <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css' rel='stylesheet'>
     <script src='https://unpkg.com/htmx.org@1.9.10'></script>
+    <script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
     <style>
         .card {{
             transition: all 0.3s;
@@ -84,13 +102,41 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             margin-top: 5px;
             text-align: center;
         }}
+        .chart-container {{
+            height: 300px;
+            margin-bottom: 20px;
+        }}
     </style>
 </head>
-<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 5s' hx-swap='outerHTML'>        
+<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 15s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
                 <div class='alert alert-info'>
                     <strong>YARP Routes:</strong> Last updated at {(YarpHelper.LastUpdateTime == DateTime.MinValue ? "Never" : YarpHelper.LastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss"))}
+                </div>
+            </div>
+        </div>
+        
+        <div class='row mb-4'>
+            <div class='col-12 mb-3'>
+                <h2>Cluster</h2>
+            </div>
+            <div class='col-md-6 mb-3'>
+                <div class='card bg-dark-subtle shadow-sm'>
+                    <div class='card-body'>
+                        <div class='chart-container'>
+                            <canvas id='cpuChart'></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class='col-md-6 mb-3'>
+                <div class='card bg-dark-subtle shadow-sm'>
+                    <div class='card-body'>
+                        <div class='chart-container'>
+                            <canvas id='memoryChart'></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,6 +210,132 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             </div>")) : "<div class='col-12'><div class='alert alert-warning'>No container data available</div></div>")}
         </div>
     </div>
+
+    <script>
+    (function() {{
+            const newCpuData = {cpuDataPoints};
+            const newMemoryData = {memoryDataPoints};
+            const newTimeLabel = {timeLabels};
+            const MAX_DATA_POINTS = 30;
+            let cpuData = [];
+            let memoryData = [];
+            let labels = [];
+            try {{
+                const storedCpuData = JSON.parse(localStorage.getItem('cpuData')) || [];
+                const storedMemoryData = JSON.parse(localStorage.getItem('memoryData')) || [];
+                const storedLabels = JSON.parse(localStorage.getItem('timeLabels')) || [];
+                if(newCpuData.length > 0 && newMemoryData.length > 0 && newTimeLabel.length > 0) {{
+                    if(storedLabels.length === 0 || storedLabels[storedLabels.length-1] !== newTimeLabel[0]) {{
+                        cpuData = [...storedCpuData, ...newCpuData].slice(-MAX_DATA_POINTS);
+                        memoryData = [...storedMemoryData, ...newMemoryData].slice(-MAX_DATA_POINTS);
+                        labels = [...storedLabels, ...newTimeLabel].slice(-MAX_DATA_POINTS);
+                        localStorage.setItem('cpuData', JSON.stringify(cpuData));
+                        localStorage.setItem('memoryData', JSON.stringify(memoryData));
+                        localStorage.setItem('timeLabels', JSON.stringify(labels));
+                    }} else {{
+                        cpuData = storedCpuData;
+                        memoryData = storedMemoryData;
+                        labels = storedLabels;
+                    }}
+                }} else {{
+                    cpuData = storedCpuData;
+                    memoryData = storedMemoryData;
+                    labels = storedLabels;
+                }}
+            }} catch (e) {{
+                console.error('Error loading chart data:', e);
+                localStorage.removeItem('cpuData');
+                localStorage.removeItem('memoryData');
+                localStorage.removeItem('timeLabels');
+            }}
+            window.cpuChart = window.cpuChart || null;
+            window.memoryChart = window.memoryChart || null;
+            window.initCharts = function() {{
+                if(window.cpuChart && typeof window.cpuChart.destroy === 'function') {{
+                    window.cpuChart.destroy();
+                    window.cpuChart = null;
+                }}
+                if(window.memoryChart && typeof window.memoryChart.destroy === 'function') {{
+                    window.memoryChart.destroy();
+                    window.memoryChart = null;
+                }}
+                const cpuCanvas = document.getElementById('cpuChart');
+                const memoryCanvas = document.getElementById('memoryChart');
+                if(cpuCanvas) {{
+                    const cpuCtx = cpuCanvas.getContext('2d');
+                    window.cpuChart = new Chart(cpuCtx, {{
+                        type: 'line',
+                        data: {{
+                            labels: labels,
+                            datasets: [{{
+                                label: 'CPU Usage (%)',
+                                data: cpuData,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderWidth: 2,
+                                tension: 0.2,
+                                fill: true
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {{
+                                y: {{
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {{
+                                        display: true,
+                                        text: 'Percentage (%)'
+                                    }}
+                                }}
+                            }},
+                            animation: {{
+                                duration: 500
+                            }}
+                        }}
+                    }});
+                }}
+                if(memoryCanvas) {{
+                    const memoryCtx = memoryCanvas.getContext('2d');
+                    window.memoryChart = new Chart(memoryCtx, {{
+                        type: 'line',
+                        data: {{
+                            labels: labels,
+                            datasets: [{{
+                                label: 'Memory Usage (%)',
+                                data: memoryData,
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                borderWidth: 2,
+                                tension: 0.2,
+                                fill: true
+                            }}]
+                        }},
+                        options: {{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {{
+                                y: {{
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {{
+                                        display: true,
+                                        text: 'Percentage (%)'
+                                    }}
+                                }}
+                            }},
+                            animation: {{
+                                duration: 500 
+                            }}
+                        }}
+                    }});
+                }}
+            }};
+            document.addEventListener('DOMContentLoaded', window.initCharts);
+            window.initCharts();
+        }})();
+    </script>
 </body>
 </html>";
 

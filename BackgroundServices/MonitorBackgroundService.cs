@@ -7,7 +7,7 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class MonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _monitorInterval = TimeSpan.FromSeconds(10);
+    private readonly TimeSpan _monitorInterval = TimeSpan.FromMilliseconds(100);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -70,6 +70,7 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
 
                 ClusterHelper.GenerateClusterOverview();
                 clusterOverviewService.UpdateOverview();
+                Console.WriteLine("Cluster updated");
             }
             catch (Exception e)
             {
