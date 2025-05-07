@@ -43,7 +43,6 @@ public static class YarpHelper
             }
 
             UpdateYarpRoutesInternal(_app);
-            _lastUpdateTime = DateTime.Now;
             _updatePending = false;
         }
         finally
@@ -62,7 +61,6 @@ public static class YarpHelper
             if (_updatePending)
             {
                 UpdateYarpRoutesInternal(_app);
-                _lastUpdateTime = DateTime.Now;
                 _updatePending = false;
                 Console.WriteLine($"Processed pending YARP routes update at {DateTime.Now:HH:mm:ss}");
             }
@@ -88,7 +86,6 @@ public static class YarpHelper
         try
         {
             UpdateYarpRoutesInternal(application);
-            _lastUpdateTime = DateTime.Now;
             _updatePending = false;
         }
         catch (Exception ex)
@@ -161,7 +158,7 @@ public static class YarpHelper
                     {
                         Enabled = true,
                         Interval = TimeSpan.FromSeconds(10),
-                        Timeout = TimeSpan.FromSeconds(5),
+                        Timeout = TimeSpan.FromSeconds(10),
                         Policy = "ConsecutiveFailures"
                     }
                 },
@@ -189,6 +186,7 @@ public static class YarpHelper
                 
                 proxyConfigProvider.Update(routeConfigs, clusterConfigs);
                 _lastContainerHash = currentContainerHash;
+                _lastUpdateTime = DateTime.Now;
                 Console.WriteLine($"Yarp routes updated at {DateTime.Now:HH:mm:ss} for {routeConfigs.Count} apps");
             }
         }

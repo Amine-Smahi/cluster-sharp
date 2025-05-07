@@ -29,12 +29,12 @@
   "Machines": [
     {
       "Hostname": "control-plane",
-      "Cpu": 4.5,
+      "Cpu": 2.3,
       "Memory": 6.7
     },
     {
       "Hostname": "node1",
-      "Cpu": 0,
+      "Cpu": 4.7,
       "Memory": 6.6
     }
   ]
