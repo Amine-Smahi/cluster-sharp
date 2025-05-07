@@ -121,20 +121,11 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             <div class='col-12 mb-3'>
                 <h2>Cluster</h2>
             </div>
-            <div class='col-md-6 mb-3'>
+            <div class='col-12 mb-3'>
                 <div class='card bg-dark-subtle shadow-sm'>
                     <div class='card-body'>
                         <div class='chart-container'>
-                            <canvas id='cpuChart'></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class='col-md-6 mb-3'>
-                <div class='card bg-dark-subtle shadow-sm'>
-                    <div class='card-body'>
-                        <div class='chart-container'>
-                            <canvas id='memoryChart'></canvas>
+                            <canvas id='resourceChart'></canvas>
                         </div>
                     </div>
                 </div>
@@ -216,7 +207,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             const newCpuData = {cpuDataPoints};
             const newMemoryData = {memoryDataPoints};
             const newTimeLabel = {timeLabels};
-            const MAX_DATA_POINTS = 30;
+            const MAX_DATA_POINTS = 50;
             let cpuData = [];
             let memoryData = [];
             let labels = [];
@@ -248,34 +239,40 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                 localStorage.removeItem('memoryData');
                 localStorage.removeItem('timeLabels');
             }}
-            window.cpuChart = window.cpuChart || null;
-            window.memoryChart = window.memoryChart || null;
+            window.resourceChart = window.resourceChart || null;
             window.initCharts = function() {{
-                if(window.cpuChart && typeof window.cpuChart.destroy === 'function') {{
-                    window.cpuChart.destroy();
-                    window.cpuChart = null;
+                if(window.resourceChart && typeof window.resourceChart.destroy === 'function') {{
+                    window.resourceChart.destroy();
+                    window.resourceChart = null;
                 }}
-                if(window.memoryChart && typeof window.memoryChart.destroy === 'function') {{
-                    window.memoryChart.destroy();
-                    window.memoryChart = null;
-                }}
-                const cpuCanvas = document.getElementById('cpuChart');
-                const memoryCanvas = document.getElementById('memoryChart');
-                if(cpuCanvas) {{
-                    const cpuCtx = cpuCanvas.getContext('2d');
-                    window.cpuChart = new Chart(cpuCtx, {{
+                
+                const resourceCanvas = document.getElementById('resourceChart');
+                if(resourceCanvas) {{
+                    const resourceCtx = resourceCanvas.getContext('2d');
+                    window.resourceChart = new Chart(resourceCtx, {{
                         type: 'line',
                         data: {{
                             labels: labels,
-                            datasets: [{{
-                                label: 'CPU Usage (%)',
-                                data: cpuData,
-                                borderColor: 'rgba(75, 192, 192, 1)',
-                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                                borderWidth: 2,
-                                tension: 0.2,
-                                fill: true
-                            }}]
+                            datasets: [
+                                {{
+                                    label: 'CPU Usage (%)',
+                                    data: cpuData,
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                    borderWidth: 2,
+                                    tension: 0.2,
+                                    fill: true
+                                }},
+                                {{
+                                    label: 'Memory Usage (%)',
+                                    data: memoryData,
+                                    borderColor: 'rgba(255, 99, 132, 1)',
+                                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                    borderWidth: 2,
+                                    tension: 0.2,
+                                    fill: true
+                                }}
+                            ]
                         }},
                         options: {{
                             responsive: true,
@@ -292,41 +289,6 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                             }},
                             animation: {{
                                 duration: 500
-                            }}
-                        }}
-                    }});
-                }}
-                if(memoryCanvas) {{
-                    const memoryCtx = memoryCanvas.getContext('2d');
-                    window.memoryChart = new Chart(memoryCtx, {{
-                        type: 'line',
-                        data: {{
-                            labels: labels,
-                            datasets: [{{
-                                label: 'Memory Usage (%)',
-                                data: memoryData,
-                                borderColor: 'rgba(255, 99, 132, 1)',
-                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                                borderWidth: 2,
-                                tension: 0.2,
-                                fill: true
-                            }}]
-                        }},
-                        options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {{
-                                y: {{
-                                    beginAtZero: true,
-                                    max: 100,
-                                    title: {{
-                                        display: true,
-                                        text: 'Percentage (%)'
-                                    }}
-                                }}
-                            }},
-                            animation: {{
-                                duration: 500 
                             }}
                         }}
                     }});

@@ -8,7 +8,7 @@
         {
           "Host": "control-plane",
           "Cpu": 0,
-          "Memory": 0.05
+          "Memory": 0.13
         }
       ]
     },
@@ -19,13 +19,13 @@
       "ContainerOnHostStatsList": [
         {
           "Host": "control-plane",
-          "Cpu": 5.86,
-          "Memory": 0.27
+          "Cpu": 0,
+          "Memory": 0.26
         },
         {
           "Host": "node1",
-          "Cpu": 5.65,
-          "Memory": 0.27
+          "Cpu": 0,
+          "Memory": 0.2
         }
       ]
     },
@@ -45,13 +45,13 @@
   "Machines": [
     {
       "Hostname": "control-plane",
-      "Cpu": 2.3,
-      "Memory": 7.6
+      "Cpu": 0,
+      "Memory": 7.3
     },
     {
       "Hostname": "node1",
-      "Cpu": 2.3,
-      "Memory": 7.8
+      "Cpu": 7,
+      "Memory": 7.2
     }
   ]
 }
