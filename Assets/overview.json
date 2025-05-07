@@ -4,38 +4,54 @@
       "Name": "registry",
       "Replicas": 1,
       "ExternalPort": "5000",
-      "Hosts": [
-        "control-plane"
+      "ContainerOnHostStatsList": [
+        {
+          "Host": "control-plane",
+          "Cpu": 0,
+          "Memory": 0.05
+        }
       ]
     },
     {
       "Name": "amine.com",
       "Replicas": 2,
       "ExternalPort": "8080",
-      "Hosts": [
-        "control-plane",
-        "node1"
+      "ContainerOnHostStatsList": [
+        {
+          "Host": "control-plane",
+          "Cpu": 0,
+          "Memory": 0.07
+        },
+        {
+          "Host": "node1",
+          "Cpu": 0,
+          "Memory": 0.44
+        }
       ]
     },
     {
       "Name": "amina.com",
       "Replicas": 1,
       "ExternalPort": "8090",
-      "Hosts": [
-        "node1"
+      "ContainerOnHostStatsList": [
+        {
+          "Host": "node1",
+          "Cpu": 0,
+          "Memory": 0.03
+        }
       ]
     }
   ],
   "Machines": [
     {
       "Hostname": "control-plane",
-      "Cpu": 2.3,
-      "Memory": 6.7
+      "Cpu": 11.6,
+      "Memory": 6.8
     },
     {
       "Hostname": "node1",
-      "Cpu": 4.7,
-      "Memory": 6.6
+      "Cpu": 4.9,
+      "Memory": 7.8
     }
   ]
 }

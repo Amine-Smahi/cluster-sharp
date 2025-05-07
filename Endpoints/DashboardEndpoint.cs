@@ -138,6 +138,27 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                         </div>
                         <p class='card-text mb-1'>Hosts:</p>
                             {string.Join("", container.Hosts.Select(host => $"<span class=\"badge rounded-pill text-bg-secondary me-2\">{host}</span>"))}
+                        <!-- Per-host container stats table -->
+                        {(container.ContainerOnHostStatsList.Count > 0 ? $@"
+                        <div class='mt-3'>
+                            <table class='table table-sm table-dark table-bordered mb-0'>
+                                <thead>
+                                    <tr>
+                                        <th scope='col'>Host</th>
+                                        <th scope='col'>CPU (%)</th>
+                                        <th scope='col'>Memory (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {string.Join("", container.ContainerOnHostStatsList.Select(stats => $@"
+                                        <tr>
+                                            <td>{stats.Host}</td>
+                                            <td><progress class='bg-{GetColorClass(stats.Cpu)}' value='{stats.Cpu.ToString(CultureInfo.InvariantCulture)}' max='100'></progress> {stats.Cpu.ToString(CultureInfo.InvariantCulture)}%</td>
+                                            <td><progress class='bg-{GetColorClass(stats.Memory)}' value='{stats.Memory.ToString(CultureInfo.InvariantCulture)}' max='100'></progress> {stats.Memory.ToString(CultureInfo.InvariantCulture)}%</td>
+                                        </tr>"))}
+                                </tbody>
+                            </table>
+                        </div>" : "")}
                     </div>
                 </div>
             </div>")) : "<div class='col-12'><div class='alert alert-warning'>No container data available</div></div>")}

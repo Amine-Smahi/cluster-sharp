@@ -60,11 +60,22 @@ public static class ClusterHelper
                     var container = new Container
                     {
                         Name = x.First().Name,
-                        Replicas = x.Count(),
-                        ExternalPort = x.First().ExternalPort,
+                        Replicas = x.Count,
+                        ExternalPort = x.First().ExternalPort
                     };
-                    container.Hosts = clusterInfo.Where(y => y.Containers.Any(c => c.Name == container.Name))
-                        .Select(y => y.Hostname).Distinct().ToList();
+                    container.ContainerOnHostStatsList = clusterInfo
+                        .Where(y => y.Containers.Any(c => c.Name == container.Name))
+                        .Select(y => 
+                        {
+                            var containerStats = y.Containers.First(c => c.Name == container.Name);
+                            return new ContainerOnHostStats
+                            {
+                                Host = y.Hostname,
+                                Cpu = containerStats.Cpu,
+                                Memory = containerStats.Memory,
+                            };
+                        })
+                        .ToList();
                     return container;
                 }).ToList(),
             Machines = clusterInfo.Select(x => new Machine

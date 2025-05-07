@@ -3,8 +3,8 @@
     "hostname": "control-plane",
     "role": null,
     "MachineStats": {
-      "Cpu": 2.3,
-      "Memory": 6.7,
+      "Cpu": 11.6,
+      "Memory": 6.8,
       "Disk": 7
     },
     "Containers": [
@@ -18,7 +18,7 @@
       {
         "Name": "amine.com",
         "Cpu": 0,
-        "Memory": 0.03,
+        "Memory": 0.07,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
       }
@@ -28,15 +28,15 @@
     "hostname": "node1",
     "role": null,
     "MachineStats": {
-      "Cpu": 4.7,
-      "Memory": 6.6,
+      "Cpu": 4.9,
+      "Memory": 7.8,
       "Disk": 6
     },
     "Containers": [
       {
         "Name": "amine.com",
         "Cpu": 0,
-        "Memory": 0.03,
+        "Memory": 0.44,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
       },
