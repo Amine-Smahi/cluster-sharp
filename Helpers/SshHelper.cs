@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.Concurrent;
 using Renci.SshNet;
 using ClusterSharp.Api.Models.Commands;
 using ClusterSharp.Api.Models.Stats;
@@ -9,6 +10,58 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class SshHelper
 {
+    // Connection pool to reuse SSH connections
+    private static readonly ConcurrentDictionary<string, SshClient> ConnectionPool = new();
+    private static readonly object PoolLock = new();
+    
+    private static SshClient GetOrCreateConnection(string hostname, string username, string password)
+    {
+        var key = $"{username}@{hostname}";
+        
+        if (ConnectionPool.TryGetValue(key, out var client) && client.IsConnected)
+            return client;
+        
+        lock (PoolLock)
+        {
+            // Check again inside the lock to avoid race conditions
+            if (ConnectionPool.TryGetValue(key, out client) && client.IsConnected)
+                return client;
+                
+            // Create new connection if needed
+            client = new SshClient(hostname, username, password);
+            try
+            {
+                client.Connect();
+                ConnectionPool[key] = client;
+                return client;
+            }
+            catch
+            {
+                client.Dispose();
+                throw;
+            }
+        }
+    }
+    
+    // Cleanup method to be called during application shutdown
+    public static void CleanupConnections()
+    {
+        foreach (var client in ConnectionPool.Values)
+        {
+            try
+            {
+                if (client.IsConnected)
+                    client.Disconnect();
+                client.Dispose();
+            }
+            catch
+            {
+                // Ignore errors during cleanup
+            }
+        }
+        ConnectionPool.Clear();
+    }
+
     public static List<CommandResult>? ExecuteControllerCommands(IEnumerable<string> commands)
     {
         var clusterInfo = ClusterHelper.GetClusterSetup();
@@ -25,8 +78,7 @@ public static class SshHelper
         
         try
         {
-            using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
-            client.Connect();
+            var client = GetOrCreateConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
 
             foreach (var command in commands)
             {
@@ -56,8 +108,6 @@ public static class SshHelper
                 
                 results.Add(result);
             }
-
-            client.Disconnect();
         }
         catch (Exception ex)
         {
@@ -107,6 +157,91 @@ public static class SshHelper
         return containers;
     }
 
+    public static List<ContainerStats>? GetDockerContainerStats(string hostname)
+    {
+        var clusterInfo = ClusterHelper.GetClusterSetup();
+        if (clusterInfo == null)
+            return null;
+        
+        var containers = new List<ContainerStats>();
+        try
+        {
+            var client = GetOrCreateConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
+            
+            // Get all container info in a single command to reduce round trips
+            var statsCommand = 
+                "docker ps --format '{{.Names}}|{{.Ports}}' && " + 
+                "echo '---STATS_SEPARATOR---' && " +
+                "docker stats --no-stream --format '{{.Name}}|{{.CPUPerc}}|{{.MemPerc}}' && " +
+                "echo '---STATS_SEPARATOR---' && " +
+                "docker ps -s --format '{{.Names}}|{{.Size}}'";
+                
+            using var batchCmd = client.CreateCommand(statsCommand);
+            batchCmd.Execute();
+            
+            var sections = batchCmd.Result.Split("---STATS_SEPARATOR---", StringSplitOptions.RemoveEmptyEntries);
+            if (sections.Length != 3)
+                return containers;
+                
+            // Parse container names and ports
+            var portMap = new Dictionary<string, string>();
+            foreach (var line in sections[0].Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    portMap[parts[0].Trim()] = parts[1].Trim();
+                }
+            }
+            
+            // Parse CPU and memory stats
+            var statsMap = new Dictionary<string, (double Cpu, double Memory)>();
+            foreach (var line in sections[1].Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 3)
+                {
+                    var name = parts[0].Trim();
+                    double.TryParse(parts[1].TrimEnd('%'), CultureInfo.InvariantCulture, out var cpu);
+                    double.TryParse(parts[2].TrimEnd('%'), CultureInfo.InvariantCulture, out var memory);
+                    statsMap[name] = (cpu, memory);
+                }
+            }
+            
+            // Parse disk stats
+            var diskMap = new Dictionary<string, string>();
+            foreach (var line in sections[2].Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    diskMap[parts[0].Trim()] = parts[1].Trim();
+                }
+            }
+            
+            // Combine all data
+            foreach (var name in statsMap.Keys)
+            {
+                portMap.TryGetValue(name, out var portsString);
+                diskMap.TryGetValue(name, out var diskUsage);
+                
+                var stats = statsMap[name];
+                containers.Add(new ContainerStats
+                {
+                    Name = name,
+                    Cpu = stats.Cpu,
+                    Memory = stats.Memory,
+                    Disk = diskUsage ?? "0B",
+                    ExternalPort = ExtractFirstHostPort(portsString ?? string.Empty)
+                });
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+        return containers;
+    }
 
     private static string ExtractFirstHostPort(string portsString)
     {
@@ -132,107 +267,6 @@ public static class SshHelper
         return string.Empty;
     }
 
-    public static List<ContainerStats>? GetDockerContainerStats(string hostname)
-    {
-        var clusterInfo = ClusterHelper.GetClusterSetup();
-        if (clusterInfo == null)
-            return null;
-        
-        var containers = new List<ContainerStats>();
-        try
-        {
-            using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
-            client.Connect();
-            
-            // First get a list of all container names
-            using var listCmd = client.CreateCommand("docker ps --format '{{.Names}}'");
-            listCmd.Execute();
-            var containerNames = listCmd.Result.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(name => name.Trim('\''))
-                .ToList();
-                
-            // Get port mappings for correlation
-            var portMap = new Dictionary<string, string>();
-            using (var psCmd = client.CreateCommand("docker ps --format '{{.Names}}|{{.Ports}}'"))
-            {
-                psCmd.Execute();
-                var psOutput = psCmd.Result;
-                foreach (var line in psOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var parts = line.Split('|');
-                    if (parts.Length == 2)
-                    {
-                        portMap[parts[0].Trim()] = parts[1].Trim();
-                    }
-                }
-            }
-            
-            // Get stats for each container using a simplified approach
-            foreach (var container in containerNames)
-            {
-                var statsCommand = $"container=\"{container}\"; " +
-                                  "echo \"CPU $(docker stats --no-stream --format '{{.CPUPerc}}' $container) " +
-                                  "RAM $(docker stats --no-stream --format '{{.MemPerc}}' $container) " +
-                                  "DISK $(docker ps -s --filter \"name=$container\" --format \"{{.Size}}\")\"";
-                
-                using var statsCmd = client.CreateCommand(statsCommand);
-                statsCmd.Execute();
-                var result = statsCmd.Result.Trim();
-                
-                if (!string.IsNullOrEmpty(result))
-                {
-                    var cpuMatch = Regex.Match(result, @"CPU\s+(\d+\.\d+%)");
-                    var ramMatch = Regex.Match(result, @"RAM\s+(\d+\.\d+%)");
-                    var diskMatch = Regex.Match(result, @"DISK\s+(.+)$");
-                    
-                    double cpuPercent = 0;
-                    double ramPercent = 0;
-                    
-                    if (cpuMatch.Success && double.TryParse(cpuMatch.Groups[1].Value.TrimEnd('%'), 
-                            CultureInfo.InvariantCulture, out var cpu))
-                        cpuPercent = cpu;
-                            
-                    if (ramMatch.Success && double.TryParse(ramMatch.Groups[1].Value.TrimEnd('%'), 
-                            CultureInfo.InvariantCulture, out var ram))
-                        ramPercent = ram;
-                    
-                    portMap.TryGetValue(container, out var externalPortRaw);
-                    var externalPort = ExtractFirstHostPort(externalPortRaw ?? string.Empty);
-                    
-                    containers.Add(new ContainerStats
-                    {
-                        Name = container,
-                        Cpu = cpuPercent,
-                        Memory = ramPercent,
-                        Disk = diskMatch.Success ? diskMatch.Groups[1].Value : "0B", 
-                        ExternalPort = externalPort
-                    });
-                }
-            }
-            
-            client.Disconnect();
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-        }
-        return containers;
-    }
-
-    private static double ParseMemoryValue(string memStr)
-    {
-        memStr = memStr.Trim();
-        double multiplier = 1;
-        if (memStr.EndsWith("GiB", StringComparison.OrdinalIgnoreCase)) multiplier = 1024;
-        else if (memStr.EndsWith("MiB", StringComparison.OrdinalIgnoreCase)) multiplier = 1;
-        else if (memStr.EndsWith("MB", StringComparison.OrdinalIgnoreCase)) multiplier = 1;
-        else if (memStr.EndsWith("GB", StringComparison.OrdinalIgnoreCase)) multiplier = 1024;
-        var numPart = new string(memStr.TakeWhile(c => char.IsDigit(c) || c == '.' || c == ',').ToArray());
-        if (double.TryParse(numPart.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var value))
-            return value * multiplier;
-        return 0;
-    }
-
     public static MachineStats? GetMachineStats(string hostname)
     {
         var clusterInfo = ClusterHelper.GetClusterSetup();
@@ -241,8 +275,7 @@ public static class SshHelper
         
         try
         {
-            using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
-            client.Connect();
+            var client = GetOrCreateConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
 
             var statsCommand = @"echo ""CPU $(LC_ALL=C top -bn1 | grep ""Cpu(s)"" | sed ""s/.*, *\([0-9.]*\)%* id.*/\1/"" | awk '{printf(""%.1f%%"", 100-$1)}')  RAM $(free -m | awk '/Mem:/ { printf(""%.1f%%"", $3/$2*100) }')  DISK $(df -h / | awk 'NR==2 {print $5}')"" ";
             using var cmd = client.CreateCommand(statsCommand);
@@ -266,12 +299,11 @@ public static class SshHelper
                     stats.Disk = disk;
             }
 
-            client.Disconnect();
             return stats;
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // Error handling if needed
+            Console.WriteLine(e.Message);
             return null;
         }
     }

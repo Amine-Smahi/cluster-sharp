@@ -11,8 +11,19 @@ namespace ClusterSharp.Api.Extensions
                     await next.Invoke();
                 }
                 catch (Exception ex) when (ex.Message.Contains("No destination available for") ||
-                                          ex.Message.Contains("Failed to resolve destination"))
+                                          ex.Message.Contains("Failed to resolve destination") ||
+                                          ex is TaskCanceledException ||
+                                          ex is OperationCanceledException ||
+                                          (ex is System.Threading.Tasks.TaskCanceledException && ex.Message.Contains("The request was canceled")))
                 {
+                    // For request cancellations, respond with appropriate status
+                    if (ex is TaskCanceledException || ex is OperationCanceledException || 
+                        (ex.Message.Contains("The request was canceled") || ex.Message.Contains("RequestCanceled")))
+                    {
+                        context.Response.StatusCode = 499; // Client Closed Request
+                        return;
+                    }
+                    
                     await Task.Delay(100);
                     try
                     {

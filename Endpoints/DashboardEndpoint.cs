@@ -115,7 +115,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         }}
     </style>
 </head>
-<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
+<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 3s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
     <div class='container-fluid h-100'>
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
@@ -126,11 +126,11 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         </div>
         
         <div class='row mb-4'>
-            <div class='col-6'>
-                <div class='col-12 mb-3'>
+            <div class='col-md-6 col-12'>
+                <div class='mb-3'>
                     <h2>Request Statistics</h2>
                 </div>
-                <div class='col-12 mb-3'>
+                <div class='mb-3'>
                     <div class='card bg-dark-subtle shadow-sm'>
                         <div class='card-body'>
                             <div class='chart-container'>
@@ -141,11 +141,11 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                 </div>
             </div>
             
-            <div class='col-6'>
-                <div class='col-12 mb-3'>
+            <div class='col-md-6 col-12'>
+                <div class='mb-3'>
                     <h2>Cluster Resources</h2>
                 </div>
-                <div class='col-12 mb-3'>
+                <div class='mb-3'>
                     <div class='card bg-dark-subtle shadow-sm'>
                         <div class='card-body'>
                             <div class='chart-container'>
@@ -234,7 +234,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             const newTimeLabel = {timeLabels};
             const newRequestsData = {requestsPerSecondDataPoints};
             const newRequestsTimeLabel = {requestsTimeLabels};
-            const MAX_DATA_POINTS = 50;
+            const MAX_DATA_POINTS = 30;
             let cpuData = [];
             let memoryData = [];
             let labels = [];
@@ -373,7 +373,6 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                             maintainAspectRatio: false,
                             scales: {{
                                 y: {{
-                                    beginAtZero: false,
                                     title: {{
                                         display: true,
                                         text: 'Requests/sec'

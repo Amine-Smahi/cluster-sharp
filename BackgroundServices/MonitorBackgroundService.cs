@@ -17,7 +17,6 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
             
             try
             {
-                var clusterInfo = new List<Node>();
                 var cluster = ClusterHelper.GetClusterSetup();
                 if (cluster == null)
                 {
@@ -25,42 +24,18 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                     continue;
                 }
                 
-                foreach (var worker in cluster.Nodes.Select(x => x.Hostname))
-                {
-                    var machineStats = SshHelper.GetMachineStats(worker);
-                    if (machineStats == null)
-                    {
-                        Console.WriteLine($"Error retrieving machine stats for {worker}");
-                        continue;
-                    }
-
-                    var containers = SshHelper.GetDockerContainerStats(worker);
-                    if (containers == null)
-                    {
-                        Console.WriteLine($"Error retrieving container stats for {worker}");
-                        continue;
-                    }
-
-                    clusterInfo.Add(new Node
-                    {
-                        Hostname = worker,
-                        MachineStats = new MachineStats
-                        {
-                            Cpu = machineStats.Cpu,
-                            Memory = machineStats.Memory,
-                            Disk = machineStats.Disk
-                        },
-                        Containers = containers.Select(c => new ContainerStats
-                        {
-                            Name = c.Name,
-                            Cpu = c.Cpu,
-                            Memory =  c.Memory,
-                            Disk = c.Disk,
-                            ExternalPort = c.ExternalPort
-                        }).ToList()
-                    });
-                }
-
+                // Process all nodes in parallel
+                var nodeProcessingTasks = cluster.Nodes
+                    .Select(x => x.Hostname)
+                    .Select(ProcessNodeAsync)
+                    .ToList();
+                
+                // Wait for all node processing tasks to complete
+                var processedNodes = await Task.WhenAll(nodeProcessingTasks);
+                
+                // Filter out any null results (failed node processing)
+                var clusterInfo = processedNodes.Where(node => node != null).ToList();
+                
                 FileHelper.SetContentToFile("Assets/cluster-info.json", clusterInfo, out var errorMessage);
                 if (errorMessage != null)
                 {
@@ -70,12 +45,49 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
 
                 ClusterHelper.GenerateClusterOverview();
                 clusterOverviewService.UpdateOverview();
-                Console.WriteLine("Cluster updated");
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Error monitoring the cluster: {e.Message}");
             }
         }
+    }
+    
+    private async Task<Node?> ProcessNodeAsync(string worker)
+    {
+        return await Task.Run(() => {
+            var machineStats = SshHelper.GetMachineStats(worker);
+            if (machineStats == null)
+            {
+                Console.WriteLine($"Error retrieving machine stats for {worker}");
+                return null;
+            }
+
+            var containers = SshHelper.GetDockerContainerStats(worker);
+            if (containers == null)
+            {
+                Console.WriteLine($"Error retrieving container stats for {worker}");
+                return null;
+            }
+
+            return new Node
+            {
+                Hostname = worker,
+                MachineStats = new MachineStats
+                {
+                    Cpu = machineStats.Cpu,
+                    Memory = machineStats.Memory,
+                    Disk = machineStats.Disk
+                },
+                Containers = containers.Select(c => new ContainerStats
+                {
+                    Name = c.Name,
+                    Cpu = c.Cpu,
+                    Memory = c.Memory,
+                    Disk = c.Disk,
+                    ExternalPort = c.ExternalPort
+                }).ToList()
+            };
+        });
     }
 }

@@ -14,7 +14,6 @@ public class ClusterOverviewService
     {
         LoadOverview();
         OverviewUpdated?.Invoke(this, EventArgs.Empty);
-        Console.WriteLine($"Cluster overview updated at {DateTime.Now}");
     }
     
     private void LoadOverview()

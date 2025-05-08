@@ -196,7 +196,12 @@ public static class YarpHelper
                 {
                     new() { { "ResponseHeader", "Cache-Control" }, { "Append", "public, max-age=120" } }
                 },
-                Timeout = TimeSpan.FromMinutes(2)
+                Timeout = TimeSpan.FromMinutes(2),
+                Metadata = new Dictionary<string, string>
+                {
+                    { "RequestTimeoutPolicy", "graceful" },
+                    { "SuppressRequestCancelledErrors", "true" }
+                }
             });
 
             var destinationCapacity = container.Hosts.Count;
@@ -242,7 +247,8 @@ public static class YarpHelper
                     MaxConnectionsPerServer = 100,
                     DangerousAcceptAnyServerCertificate = false,
                     RequestHeaderEncoding = "utf-8",
-                    SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+                    SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+                    WebProxy = null
                 }
             });
         }
