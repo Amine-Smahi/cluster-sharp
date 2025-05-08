@@ -1,7 +1,6 @@
 using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Helpers;
 using System.Runtime;
-using ClusterSharp.Api.Extensions;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 
@@ -35,9 +34,6 @@ app.UseResponseCompression();
 app.UseResponseCaching();
 
 app.UseFastEndpoints();
-
-app.UseYarpExceptionHandling();
-app.UseSecurityHeaders();
 
 app.MapOpenApi();
 
