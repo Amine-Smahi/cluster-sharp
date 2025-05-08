@@ -23,25 +23,19 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
     {
         var overview = overviewService.Overview;
 
-        // Prepare data for charts
         string cpuDataPoints = "[]";
         string memoryDataPoints = "[]";
         string timeLabels = "[]";
         string requestsPerSecondDataPoints = "[]";
         string requestsTimeLabels = "[]";
 
-        // Get the latest request stats
-        var requestStats = YarpHelper.GetLatestRequestStats();
-        requestsPerSecondDataPoints = $"[{requestStats.RequestsPerSecond.ToString(CultureInfo.InvariantCulture)}]";
-        requestsTimeLabels = $"['{requestStats.Timestamp.ToString("HH:mm:ss")}']";
+
 
         if (overview?.Machines != null && overview.Machines.Any())
         {
-            // Calculate average CPU and memory across all machines
             var avgCpu = (int)overview.Machines.Average(m => m.Cpu);
             var avgMemory = (int)overview.Machines.Average(m => m.Memory);
             
-            // Format for Chart.js
             cpuDataPoints = $"[{avgCpu.ToString(CultureInfo.InvariantCulture)}]";
             memoryDataPoints = $"[{avgMemory.ToString(CultureInfo.InvariantCulture)}]";
             timeLabels = $"['{DateTime.Now.ToString("HH:mm:ss")}']";
@@ -120,7 +114,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
                 <div class='alert alert-info'>
-                    <strong>YARP Routes:</strong> Last updated at {(YarpHelper.LastUpdateTime == DateTime.MinValue ? "Never" : YarpHelper.LastUpdateTime.ToString("yyyy-MM-dd HH:mm:ss"))}
+                    <strong>YARP Routes:</strong> Last updated at 
                 </div>
             </div>
         </div>

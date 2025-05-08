@@ -10,7 +10,6 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class SshHelper
 {
-    // Connection pool to reuse SSH connections
     private static readonly ConcurrentDictionary<string, SshClient> ConnectionPool = new();
     private static readonly object PoolLock = new();
     
@@ -23,11 +22,9 @@ public static class SshHelper
         
         lock (PoolLock)
         {
-            // Check again inside the lock to avoid race conditions
             if (ConnectionPool.TryGetValue(key, out client) && client.IsConnected)
                 return client;
                 
-            // Create new connection if needed
             client = new SshClient(hostname, username, password);
             try
             {
@@ -43,7 +40,6 @@ public static class SshHelper
         }
     }
     
-    // Cleanup method to be called during application shutdown
     public static void CleanupConnections()
     {
         foreach (var client in ConnectionPool.Values)
@@ -56,7 +52,6 @@ public static class SshHelper
             }
             catch
             {
-                // Ignore errors during cleanup
             }
         }
         ConnectionPool.Clear();
@@ -145,14 +140,12 @@ public static class SshHelper
             }
             else if (!string.IsNullOrEmpty(error))
             {
-                // Optionally handle error
             }
 
             client.Disconnect();
         }
         catch (Exception)
         {
-            // Error handling if needed
         }
         return containers;
     }
@@ -168,7 +161,6 @@ public static class SshHelper
         {
             var client = GetOrCreateConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
             
-            // Get all container info in a single command to reduce round trips
             var statsCommand = 
                 "docker ps --format '{{.Names}}|{{.Ports}}' && " + 
                 "echo '---STATS_SEPARATOR---' && " +
@@ -183,7 +175,6 @@ public static class SshHelper
             if (sections.Length != 3)
                 return containers;
                 
-            // Parse container names and ports
             var portMap = new Dictionary<string, string>();
             foreach (var line in sections[0].Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -194,7 +185,6 @@ public static class SshHelper
                 }
             }
             
-            // Parse CPU and memory stats
             var statsMap = new Dictionary<string, (double Cpu, double Memory)>();
             foreach (var line in sections[1].Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -208,7 +198,6 @@ public static class SshHelper
                 }
             }
             
-            // Parse disk stats
             var diskMap = new Dictionary<string, string>();
             foreach (var line in sections[2].Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -219,7 +208,6 @@ public static class SshHelper
                 }
             }
             
-            // Combine all data
             foreach (var name in statsMap.Keys)
             {
                 portMap.TryGetValue(name, out var portsString);
