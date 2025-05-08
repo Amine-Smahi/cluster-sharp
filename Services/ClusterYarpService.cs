@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Models.Overview;
 using Microsoft.Extensions.Primitives;
 using System.Collections.Concurrent;
+using System.Security.Authentication;
 using Yarp.ReverseProxy.Configuration;
 
 namespace ClusterSharp.Api.Services;
@@ -10,9 +11,9 @@ public class ClusterYarpService
     private readonly ClusterOverviewService _overviewService;
     private readonly ILogger<ClusterYarpService> _logger;
     private readonly InMemoryConfigProvider _proxyConfigProvider;
-    
-    // Cache to avoid unnecessary recreation of destination configs
     private readonly ConcurrentDictionary<string, DestinationConfig> _destinationCache = new();
+    
+    private readonly ConcurrentDictionary<string, bool> _destinationHealth = new();
 
     public ClusterYarpService(
         ClusterOverviewService overviewService,
@@ -23,7 +24,6 @@ public class ClusterYarpService
         _proxyConfigProvider = proxyConfigProvider;
         _logger = logger;
         
-        // Subscribe to overview updates to refresh the proxy configuration
         _overviewService.OverviewUpdated += (_, _) => UpdateProxyConfig();
     }
 
@@ -48,19 +48,27 @@ public class ClusterYarpService
 
                 var clusterId = $"cluster-{container.Name}";
                 
-                // Create destinations for each host running this container
                 var destinations = new Dictionary<string, DestinationConfig>(container.ContainerOnHostStatsList.Count);
                 foreach (var hostStats in container.ContainerOnHostStatsList)
                 {
                     var destId = $"{container.Name}-{hostStats.Host}";
                     var destKey = $"{destId}-{container.ExternalPort}";
                     
-                    // Try to get from cache first
+                    if (_destinationHealth.TryGetValue(destKey, out var isHealthy) && !isHealthy)
+                        continue;
+                    
                     if (!_destinationCache.TryGetValue(destKey, out var destinationConfig))
                     {
                         destinationConfig = new DestinationConfig
                         {
-                            Address = $"http://{hostStats.Host}:{container.ExternalPort}"
+                            Address = $"http://{hostStats.Host}:{container.ExternalPort}",
+                            Health = $"http://{hostStats.Host}:{container.ExternalPort}/health", 
+                            Metadata = new Dictionary<string, string>
+                            {
+                                
+                                { "IsActive", "true" },
+                                { "Priority", "1" } 
+                            }
                         };
                         
                         _destinationCache[destKey] = destinationConfig;
@@ -69,47 +77,88 @@ public class ClusterYarpService
                     destinations.Add(destId, destinationConfig);
                 }
 
-                // Create cluster config with health checks
+                
+                if (destinations.Count == 0)
+                    continue;
+
+                
                 clusters.Add(new ClusterConfig
                 {
                     ClusterId = clusterId,
-                    LoadBalancingPolicy = "PowerOfTwoChoices", // Efficient load balancing suitable for high traffic
+                    LoadBalancingPolicy = "LeastRequests", 
+                    SessionAffinity = new SessionAffinityConfig
+                    {
+                        Enabled = true,
+                        Policy = "Cookie",
+                        AffinityKeyName = ".Affinity",
+                        Cookie = new SessionAffinityCookieConfig
+                        {
+                            SameSite = SameSiteMode.Lax
+                        }
+                    },
                     HealthCheck = new HealthCheckConfig
                     {
+                        Active = new ActiveHealthCheckConfig
+                        {
+                            Enabled = true,
+                            Interval = TimeSpan.FromSeconds(1),
+                            Timeout = TimeSpan.FromSeconds(1),
+                            Policy = "ConsecutiveFailures",
+                            Path = "/health"  
+                        },
                         Passive = new PassiveHealthCheckConfig
                         {
                             Enabled = true,
-                            Policy = "TransportFailureRate"
+                            Policy = "TransportFailureRate",
+                            ReactivationPeriod = TimeSpan.FromSeconds(3)
                         }
                     },
                     HttpClient = new HttpClientConfig
                     {
-                        MaxConnectionsPerServer = 1000, // High connection limit for high traffic
-                        EnableMultipleHttp2Connections = true,
-                        DangerousAcceptAnyServerCertificate = false
+                        MaxConnectionsPerServer = 10000, 
+                        EnableMultipleHttp2Connections = false, 
+                        DangerousAcceptAnyServerCertificate = true, 
+                        SslProtocols = SslProtocols.None, 
+                        WebProxy = null,
+                        RequestHeaderEncoding = null
                     },
-                    Destinations = destinations
+                    Destinations = destinations,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        { "PreferredCluster", "true" }
+                    }
                 });
 
-                // Create host-based route config (route based on the domain rather than path)
-                routes.Add(new RouteConfig
+                
+                var routeConfig = new RouteConfig
                 {
                     RouteId = $"route-{container.Name}",
                     ClusterId = clusterId,
                     Match = new RouteMatch
                     {
-                        // Match requests by host header (domain name) instead of path
                         Hosts = new[] { container.Name },
                         Path = "/{**catch-all}"
                     },
+                    Transforms = new List<Dictionary<string, string>>
+                    {
+                        
+                        new() { { "RequestHeaderOriginalHost", "true" } }
+                    },
                     Metadata = new Dictionary<string, string>
                     {
-                        { "ResponseBuffering", "false" },  // Stream responses for lower latency
-                        { "Timeout", "00:01:00" }          // 1 minute timeout
+                        { "ResponseBuffering", "false" },         
+                        { "Timeout", "00:00:05" },                
+                        { "AllowResponseBuffering", "false" },    
+                        { "MaxRequestBodySize", "1048576" },      
+                        { "RateLimitingEnabled", "false" },       
+                        { "IsCacheable", "true" },                
+                        { "Priority", "1" }                       
                     }
-                });
+                };
                 
-                // Also add a path-based route for compatibility
+                routes.Add(routeConfig);
+                
+                
                 routes.Add(new RouteConfig
                 {
                     RouteId = $"path-route-{container.Name}",
@@ -120,23 +169,29 @@ public class ClusterYarpService
                     },
                     Transforms = new List<Dictionary<string, string>>
                     {
-                        new() { { "PathRemovePrefix", $"/{container.Name}" } }
+                        new() { { "PathRemovePrefix", $"/{container.Name}" } },
+                        new() { { "RequestHeaderOriginalHost", "true" } }
                     },
                     Metadata = new Dictionary<string, string>
                     {
                         { "ResponseBuffering", "false" },
-                        { "Timeout", "00:01:00" }
+                        { "Timeout", "00:00:05" },
+                        { "AllowResponseBuffering", "false" },
+                        { "MaxRequestBodySize", "1048576" },
+                        { "RateLimitingEnabled", "false" },
+                        { "IsCacheable", "true" }, 
+                        { "Priority", "2" }                       
                     }
                 });
             }
 
-            // Update the configuration
+            
             _proxyConfigProvider.Update(routes, clusters);
             
             _logger.LogInformation("Updated YARP proxy configuration with {RouteCount} routes and {ClusterCount} clusters", 
                 routes.Count, clusters.Count);
             
-            // Clean cache entries that are no longer used
+            
             CleanDestinationCache(overview.Containers);
         }
         catch (Exception ex)
@@ -145,9 +200,15 @@ public class ClusterYarpService
         }
     }
     
+    
+    public void UpdateDestinationHealth(string destinationKey, bool isHealthy)
+    {
+        _destinationHealth[destinationKey] = isHealthy;
+    }
+    
     private void CleanDestinationCache(List<Container> containers)
     {
-        // Build a set of currently active destination keys
+        
         var activeKeys = new HashSet<string>();
         foreach (var container in containers)
         {
@@ -162,12 +223,13 @@ public class ClusterYarpService
             }
         }
         
-        // Remove cached entries that are no longer active
+        
         foreach (var key in _destinationCache.Keys)
         {
             if (!activeKeys.Contains(key))
             {
                 _destinationCache.TryRemove(key, out _);
+                _destinationHealth.TryRemove(key, out _);
             }
         }
     }

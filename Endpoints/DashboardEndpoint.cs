@@ -5,7 +5,7 @@ using FastEndpoints;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class DashboardEndpoint(ClusterOverviewService overviewService) : EndpointWithoutRequest
+public class DashboardEndpoint(ClusterOverviewService overviewService, RequestStatsService requestStatsService) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -22,6 +22,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
     public override async Task HandleAsync(CancellationToken ct)
     {
         var overview = overviewService.Overview;
+        var requestStats = requestStatsService.GetCurrentStats();
 
         string cpuDataPoints = "[]";
         string memoryDataPoints = "[]";
@@ -29,7 +30,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         string requestsPerSecondDataPoints = "[]";
         string requestsTimeLabels = "[]";
 
-
+        var currentTime = DateTime.Now.ToString("HH:mm:ss");
 
         if (overview?.Machines != null && overview.Machines.Any())
         {
@@ -38,8 +39,12 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             
             cpuDataPoints = $"[{avgCpu.ToString(CultureInfo.InvariantCulture)}]";
             memoryDataPoints = $"[{avgMemory.ToString(CultureInfo.InvariantCulture)}]";
-            timeLabels = $"['{DateTime.Now.ToString("HH:mm:ss")}']";
+            timeLabels = $"['{currentTime}']";
         }
+
+        
+        requestsPerSecondDataPoints = $"[{requestStats.RequestsPerSecond.ToString(CultureInfo.InvariantCulture)}]";
+        requestsTimeLabels = $"['{currentTime}']";
 
         var html = $@"
 <!DOCTYPE html>

@@ -7,7 +7,7 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class MonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _monitorInterval = TimeSpan.FromMilliseconds(100);
+    private readonly TimeSpan _monitorInterval = TimeSpan.FromMilliseconds(50);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -24,16 +24,16 @@ public class MonitorBackgroundService(ClusterOverviewService clusterOverviewServ
                     continue;
                 }
                 
-                // Process all nodes in parallel
+                
                 var nodeProcessingTasks = cluster.Nodes
                     .Select(x => x.Hostname)
                     .Select(ProcessNodeAsync)
                     .ToList();
                 
-                // Wait for all node processing tasks to complete
+                
                 var processedNodes = await Task.WhenAll(nodeProcessingTasks);
                 
-                // Filter out any null results (failed node processing)
+                
                 var clusterInfo = processedNodes.Where(node => node != null).ToList();
                 
                 FileHelper.SetContentToFile("Assets/cluster-info.json", clusterInfo, out var errorMessage);

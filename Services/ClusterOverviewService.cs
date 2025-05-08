@@ -11,7 +11,6 @@ public class ClusterOverviewService
     public ClusterOverviewService()
     {
         LoadOverview();
-        // Trigger the event initially to notify subscribers
         OverviewUpdated?.Invoke(this, EventArgs.Empty);
     }
 
