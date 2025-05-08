@@ -8,7 +8,12 @@ public class ClusterOverviewService
     public ClusterOverview Overview { get; private set; } = null!;
     public event EventHandler? OverviewUpdated;
     
-    public ClusterOverviewService() => LoadOverview();
+    public ClusterOverviewService()
+    {
+        LoadOverview();
+        // Trigger the event initially to notify subscribers
+        OverviewUpdated?.Invoke(this, EventArgs.Empty);
+    }
 
     public void UpdateOverview()
     {
