@@ -5,7 +5,10 @@ using ClusterSharp.Api.Services;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
-public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
+public class ContainerMonitorBackgroundService(
+    ClusterOverviewService clusterOverviewService,
+    ProxyUpdaterService proxyUpdaterService)
+    : BackgroundService
 {
     private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(30);
     private readonly TimeSpan _errorInterval = TimeSpan.FromSeconds(60);
@@ -54,11 +57,11 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
                     }
 
                     clusterOverviewService.UpdateContainerInfo();
+                    proxyUpdaterService.UpdateProxyRulesIfNeeded();
                     await Task.Delay(_successInterval, stoppingToken);
                 }
                 finally
                 {
-                    // Always release the semaphore
                     _semaphore.Release();
                 }
             }

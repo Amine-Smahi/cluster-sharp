@@ -10,7 +10,7 @@
     "Containers": [
       {
         "Name": "registry",
-        "Cpu": 0.06,
+        "Cpu": 0,
         "Memory": 0.18,
         "Disk": "0B (virtual 25.4MB)",
         "external_port": "5000"

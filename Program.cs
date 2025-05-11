@@ -13,11 +13,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
 builder.Services.AddSingleton<ClusterSetupService>();
 builder.Services.AddSingleton<ProxyRule>();
+builder.Services.AddSingleton<ProxyUpdaterService>();
 
 builder.Services.AddHostedService<MachineMonitorBackgroundService>();
 builder.Services.AddHostedService<ContainerMonitorBackgroundService>();
 builder.Services.AddHostedService<UpdateBackgroundService>();
-builder.Services.AddHostedService<ProxyUpdaterBackgroundService>();
 
 builder.Services.AddFastEndpoints(options => {
     options.SourceGeneratorDiscoveredTypes = new List<Type>();
