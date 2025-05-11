@@ -20,7 +20,6 @@ public class ContainerMonitorBackgroundService(
         {
             try
             {
-                Console.WriteLine(nameof(ContainerMonitorBackgroundService));
                 await _semaphore.WaitAsync(stoppingToken);
                 
                 try

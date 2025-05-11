@@ -13,7 +13,6 @@ namespace ClusterSharp.Api.BackgroundServices
                 
                 try
                 {
-                    Console.WriteLine(nameof(UpdateBackgroundService));
                     foreach (var member in ClusterHelper.GetClusterSetup()?.Nodes!)
                     {
                         SshHelper.ExecuteCommands(member.Hostname, CommandHelper.GetUpdateMachineCommands());

@@ -17,7 +17,6 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
         {
             try
             {
-                Console.WriteLine(nameof(MachineMonitorBackgroundService));
                 await _semaphore.WaitAsync(stoppingToken);
                 
                 try
