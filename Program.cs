@@ -2,6 +2,7 @@ using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Models.Cluster;
+using ClusterSharp.Api.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,12 @@ builder.Services.AddFastEndpoints(options => {
 });
 
 var app = builder.Build();
+
+// Initialize the ClusterHelper with the service provider
+ClusterHelper.Initialize(app.Services);
+
+// Register to close all SSH connections when application is shutting down
+app.Lifetime.ApplicationStopping.Register(() => SshHelper.CloseAllConnections());
 
 app.UseRouting();
 

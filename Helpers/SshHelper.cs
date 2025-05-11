@@ -9,6 +9,81 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class SshHelper
 {
+    private static readonly Dictionary<string, SshClient?> ConnectionPool = new();
+    private static readonly Lock PoolLock = new();
+
+    private static SshClient GetConnection(string hostname, string username, string password)
+    {
+        lock (PoolLock)
+        {
+            if (ConnectionPool.TryGetValue(hostname, out var existingClient) && existingClient != null)
+            {
+                if (existingClient.IsConnected)
+                {
+                    return existingClient;
+                }
+                
+                try
+                {
+                    existingClient.Connect();
+                    return existingClient;
+                }
+                catch
+                {
+                    ConnectionPool.Remove(hostname);
+                }
+            }
+            
+            var client = new SshClient(hostname, username, password);
+            client.Connect();
+            ConnectionPool[hostname] = client;
+            return client;
+        }
+    }
+
+    private static void CloseConnection(string hostname)
+    {
+        lock (PoolLock)
+        {
+            if (ConnectionPool.TryGetValue(hostname, out var client) && client != null)
+            {
+                try
+                {
+                    client.Disconnect();
+                }
+                catch
+                {
+                    // Ignore disconnect errors
+                }
+                client.Dispose();
+                ConnectionPool.Remove(hostname);
+            }
+        }
+    }
+    
+    public static void CloseAllConnections()
+    {
+        lock (PoolLock)
+        {
+            foreach (var client in ConnectionPool.Values)
+            {
+                try
+                {
+                    if (client != null && client.IsConnected)
+                    {
+                        client.Disconnect();
+                        client.Dispose();
+                    }
+                }
+                catch
+                {
+                    // Ignore disconnect errors
+                }
+            }
+            ConnectionPool.Clear();
+        }
+    }
+
     public static List<CommandResult>? ExecuteCommands(string hostname, IEnumerable<string> commands)
     {
         var clusterInfo = ClusterHelper.GetClusterSetup();
@@ -16,10 +91,12 @@ public static class SshHelper
             return null;
         
         var results = new List<CommandResult>();
-        using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
+        SshClient? client = null;
+        var createdLocally = false;
+        
         try
         {
-            client.Connect();
+            client = GetConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
 
             foreach (var command in commands)
             {
@@ -58,12 +135,12 @@ public static class SshHelper
                 Status = Constants.NotOk,
                 Error = $"SSH connection error: {ex.Message}"
             });
+            
+            if (client != null && !createdLocally)
+            {
+                CloseConnection(hostname);
+            }
         }
-        finally
-        {
-            client.Disconnect();
-        }
-
 
         return results;
     }
@@ -75,10 +152,12 @@ public static class SshHelper
             return null;
         
         var containers = new List<ContainerStats>();
-        using var client = new SshClient(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
+        SshClient? client = null;
+        
         try
         {
-            client.Connect();
+            client = GetConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
+            
             var statsCommand =
                 "docker ps --format '{{.Names}}|{{.Ports}}' && " +
                 "echo '---STATS_SEPARATOR---' && " +
@@ -145,11 +224,13 @@ public static class SshHelper
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
+            
+            if (client != null)
+            {
+                CloseConnection(hostname);
+            }
         }
-        finally
-        {
-            client.Disconnect();
-        }
+        
         return containers;
     }
 
@@ -183,10 +264,11 @@ public static class SshHelper
         if (clusterInfo == null)
             return null;
         
-        using var client = new SshClient(hostname, username, password);
-        client.Connect();
+        SshClient? client = null;
         try
         {
+            client = GetConnection(hostname, username, password);
+            
             var statsCommand =
                 @"echo ""CPU $(LC_ALL=C top -bn1 | grep ""Cpu(s)"" | sed ""s/.*, *\([0-9.]*\)%* id.*/\1/"" | awk '{printf(""%.1f%%"", 100-$1)}')  RAM $(free -m | awk '/Mem:/ { printf(""%.1f%%"", $3/$2*100) }')  DISK $(df -h / | awk 'NR==2 {print $5}')"" ";
             using var cmd = client.CreateCommand(statsCommand);
@@ -218,11 +300,13 @@ public static class SshHelper
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
+            
+            if (client != null)
+            {
+                CloseConnection(hostname);
+            }
+            
             return null;
-        }
-        finally
-        {
-            client.Disconnect();
         }
     }
 }
