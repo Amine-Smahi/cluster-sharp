@@ -4,7 +4,7 @@
     "role": null,
     "MachineStats": {
       "Cpu": 2.3,
-      "Memory": 5.7,
+      "Memory": 6,
       "Disk": 8
     },
     "Containers": []
@@ -13,9 +13,19 @@
     "hostname": "node1",
     "role": null,
     "MachineStats": {
-      "Cpu": 2.4,
-      "Memory": 7,
+      "Cpu": 2.3,
+      "Memory": 7.5,
       "Disk": 8
+    },
+    "Containers": []
+  },
+  {
+    "hostname": "node2",
+    "role": null,
+    "MachineStats": {
+      "Cpu": 0,
+      "Memory": 19.6,
+      "Disk": 5
     },
     "Containers": []
   }

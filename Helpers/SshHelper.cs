@@ -10,26 +10,102 @@ namespace ClusterSharp.Api.Helpers;
 
 public static class SshHelper
 {
-    private static readonly ConcurrentDictionary<string, SshClient> ConnectionPool = new();
+    private static readonly ConcurrentDictionary<string, SshClientInfo> ConnectionPool = new();
     private static readonly object PoolLock = new();
+    private static readonly int MaxConnectionsPerHost = 5;
+    private static readonly Timer CleanupTimer;
+    
+    static SshHelper()
+    {
+        // Create a timer that triggers cleanup every 2 minutes
+        CleanupTimer = new Timer(_ => CleanupStaleConnections(), null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
+    }
+    
+    private class SshClientInfo
+    {
+        public SshClient Client { get; set; }
+        public DateTime LastUsed { get; set; }
+    }
+    
+    private static void CleanupStaleConnections()
+    {
+        var staleTime = DateTime.UtcNow.AddMinutes(-10); // Connections inactive for 10 minutes
+        
+        var staleConnections = ConnectionPool
+            .Where(kvp => kvp.Value.LastUsed < staleTime)
+            .Select(kvp => kvp.Key)
+            .ToList();
+            
+        foreach (var key in staleConnections)
+        {
+            if (ConnectionPool.TryRemove(key, out var clientInfo))
+            {
+                try
+                {
+                    if (clientInfo.Client.IsConnected)
+                        clientInfo.Client.Disconnect();
+                    clientInfo.Client.Dispose();
+                }
+                catch
+                {
+                    // Ignore errors during cleanup
+                }
+            }
+        }
+    }
     
     private static SshClient GetOrCreateConnection(string hostname, string username, string password)
     {
         var key = $"{username}@{hostname}";
         
-        if (ConnectionPool.TryGetValue(key, out var client) && client.IsConnected)
-            return client;
+        // Check if we have an active connection we can use
+        if (ConnectionPool.TryGetValue(key, out var clientInfo) && clientInfo.Client.IsConnected)
+        {
+            clientInfo.LastUsed = DateTime.UtcNow;
+            return clientInfo.Client;
+        }
         
         lock (PoolLock)
         {
-            if (ConnectionPool.TryGetValue(key, out client) && client.IsConnected)
-                return client;
-                
-            client = new SshClient(hostname, username, password);
+            // Try again inside lock to avoid race conditions
+            if (ConnectionPool.TryGetValue(key, out clientInfo) && clientInfo.Client.IsConnected)
+            {
+                clientInfo.LastUsed = DateTime.UtcNow;
+                return clientInfo.Client;
+            }
+            
+            // Count existing connections for this host
+            var hostConnections = ConnectionPool.Count(kvp => kvp.Key.EndsWith($"@{hostname}"));
+            
+            // If we're at max connections for this host, find the oldest one and reuse it
+            if (hostConnections >= MaxConnectionsPerHost)
+            {
+                var oldestKey = ConnectionPool
+                    .Where(kvp => kvp.Key.EndsWith($"@{hostname}"))
+                    .OrderBy(kvp => kvp.Value.LastUsed)
+                    .Select(kvp => kvp.Key)
+                    .FirstOrDefault();
+                    
+                if (oldestKey != null && ConnectionPool.TryRemove(oldestKey, out var oldClient))
+                {
+                    try 
+                    {
+                        if (oldClient.Client.IsConnected)
+                            oldClient.Client.Disconnect();
+                        oldClient.Client.Dispose();
+                    }
+                    catch
+                    {
+                        // Ignore errors during cleanup
+                    }
+                }
+            }
+            
+            var client = new SshClient(hostname, username, password);
             try
             {
                 client.Connect();
-                ConnectionPool[key] = client;
+                ConnectionPool[key] = new SshClientInfo { Client = client, LastUsed = DateTime.UtcNow };
                 return client;
             }
             catch
@@ -42,16 +118,17 @@ public static class SshHelper
     
     public static void CleanupConnections()
     {
-        foreach (var client in ConnectionPool.Values)
+        foreach (var clientInfo in ConnectionPool.Values)
         {
             try
             {
-                if (client.IsConnected)
-                    client.Disconnect();
-                client.Dispose();
+                if (clientInfo.Client.IsConnected)
+                    clientInfo.Client.Disconnect();
+                clientInfo.Client.Dispose();
             }
             catch
             {
+                // Ignore cleanup errors
             }
         }
         ConnectionPool.Clear();

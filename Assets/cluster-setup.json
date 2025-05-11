@@ -11,6 +11,10 @@
     {
       "hostname": "node1",
       "role": "worker"
+    },
+    {
+      "hostname": "node2",
+      "role": "worker"
     }
   ]
 }

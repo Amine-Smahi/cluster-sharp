@@ -7,7 +7,7 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(100);
+    private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(2000);
     private readonly TimeSpan _errorInterval = TimeSpan.FromMilliseconds(5000);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -61,17 +61,8 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
     {
         return await Task.Run(() => {
             var containers = SshHelper.GetDockerContainerStats(worker);
-            if (containers == null)
-            {
-                Console.WriteLine($"Error retrieving container stats for {worker}");
+            if (containers == null || containers.Count == 0)
                 return null;
-            }
-            
-            if(containers.Count == 0)
-            {
-                Console.WriteLine($"No containers found on {worker}");
-                return null;
-            }
 
             return new Node
             {

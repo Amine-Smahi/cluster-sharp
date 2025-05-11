@@ -23,7 +23,6 @@ builder.Logging.AddFilter("Yarp.ReverseProxy.Health.ActiveHealthCheckMonitor", L
 
 
 GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-GC.TryStartNoGCRegion(1024 * 1024 * 50); 
 
 
 ThreadPool.SetMinThreads(Environment.ProcessorCount * 50, Environment.ProcessorCount * 50);
@@ -100,21 +99,21 @@ builder.Services.AddResponseCaching();
 builder.Services.AddRequestTimeouts();
 builder.Services.AddOutputCache(options => {
     options.DefaultExpirationTimeSpan = TimeSpan.FromSeconds(10);
-    options.SizeLimit = 200 * 1024 * 1024; 
+    options.SizeLimit = 50 * 1024 * 1024;
     options.MaximumBodySize = 20 * 1024; 
 });
 
 
 builder.Services.AddMemoryCache(options =>
 {
-    options.SizeLimit = 200 * 1024 * 1024; 
+    options.SizeLimit = 50 * 1024 * 1024;
     options.ExpirationScanFrequency = TimeSpan.FromMinutes(1);
 });
 
 
 builder.Services.AddDistributedMemoryCache(options =>
 {
-    options.SizeLimit = 500 * 1024 * 1024; 
+    options.SizeLimit = 100 * 1024 * 1024;
     options.CompactionPercentage = 0.2;    
 });
 
@@ -133,7 +132,6 @@ app.Lifetime.ApplicationStopping.Register(() =>
 {
     Console.WriteLine("Application is stopping. Cleaning up SSH connections...");
     SshHelper.CleanupConnections();
-    GC.EndNoGCRegion();
 });
 
 
