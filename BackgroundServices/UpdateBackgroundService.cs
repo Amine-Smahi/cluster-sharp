@@ -8,8 +8,12 @@ namespace ClusterSharp.Api.BackgroundServices
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                var delay = CalculateDelay();
+                await Task.Delay(delay, stoppingToken);
+                
                 try
                 {
+                    Console.WriteLine(nameof(UpdateBackgroundService));
                     foreach (var member in ClusterHelper.GetClusterSetup()?.Nodes!)
                     {
                         SshHelper.ExecuteCommands(member.Hostname, CommandHelper.GetUpdateMachineCommands());
@@ -20,9 +24,6 @@ namespace ClusterSharp.Api.BackgroundServices
                 {
                     Console.WriteLine($"Error executing update: {ex.Message}");
                 }
-                
-                var delay = CalculateDelay();
-                await Task.Delay(delay, stoppingToken);
             }
         }
 

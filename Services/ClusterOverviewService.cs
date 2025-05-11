@@ -6,23 +6,10 @@ namespace ClusterSharp.Api.Services;
 
 public class ClusterOverviewService
 {
-    public ClusterOverview Overview { get; private set; } = null!;
-    public event EventHandler? OverviewUpdated;
-    
+    public ClusterOverview Overview { get; } = new ();
+
     private List<Node>? _machineInfo;
     private List<Node>? _containerInfo;
-    
-    public ClusterOverviewService()
-    {
-        LoadOverview();
-        OverviewUpdated?.Invoke(this, EventArgs.Empty);
-    }
-
-    public void UpdateOverview()
-    {
-        LoadOverview();
-        OverviewUpdated?.Invoke(this, EventArgs.Empty);
-    }
     
     public void UpdateMachineInfo()
     {
@@ -31,7 +18,6 @@ public class ClusterOverviewService
             Console.WriteLine($"Error loading machine info: {errorMessage}");
             
         GenerateOverview();
-        OverviewUpdated?.Invoke(this, EventArgs.Empty);
     }
     
     public void UpdateContainerInfo()
@@ -41,21 +27,6 @@ public class ClusterOverviewService
             Console.WriteLine($"Error loading container info: {errorMessage}");
             
         GenerateOverview();
-        OverviewUpdated?.Invoke(this, EventArgs.Empty);
-    }
-    
-    private void LoadOverview()
-    {
-        try
-        {
-            var result = FileHelper.GetContentFromFile<ClusterOverview>("Assets/overview.json", out var errorMessage);
-            if (result != null)
-                Overview = result;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading overview file: {ex.Message}");
-        }
     }
     
     private void GenerateOverview()
@@ -63,10 +34,9 @@ public class ClusterOverviewService
         if (_machineInfo == null && _containerInfo == null)
             return;
             
-        var overview = new ClusterOverview();
         if (_machineInfo != null)
         {
-            overview.Machines = _machineInfo.Select(x => new Machine
+            Overview.Machines = _machineInfo.Select(x => new Machine
             {
                 Hostname = x.Hostname,
                 Cpu = x.MachineStats.Cpu,
@@ -75,7 +45,7 @@ public class ClusterOverviewService
         }
         if (_containerInfo != null)
         {
-            overview.Containers = _containerInfo
+            Overview.Containers = _containerInfo
                 .SelectMany(x => x.Containers)
                 .GroupBy(x => x.Name)
                 .Select(x => x.ToList())
@@ -103,10 +73,5 @@ public class ClusterOverviewService
                     return container;
                 }).ToList();
         }
-        
-        Overview = overview;
-        FileHelper.SetContentToFile("Assets/overview.json", overview, out var errorMessage);
-        if (errorMessage != null)
-            Console.WriteLine($"Error writing overview to file: {errorMessage}");
     }
 }

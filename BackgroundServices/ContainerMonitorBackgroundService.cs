@@ -7,8 +7,8 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(1000);
-    private readonly TimeSpan _errorInterval = TimeSpan.FromMilliseconds(5000);
+    private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _errorInterval = TimeSpan.FromSeconds(60);
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -17,6 +17,7 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
         {
             try
             {
+                Console.WriteLine(nameof(ContainerMonitorBackgroundService));
                 await _semaphore.WaitAsync(stoppingToken);
                 
                 try
