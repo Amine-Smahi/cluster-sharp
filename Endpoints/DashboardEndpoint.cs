@@ -22,13 +22,10 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
     public override async Task HandleAsync(CancellationToken ct)
     {
         var overview = overviewService.Overview;
-        var requestStats = requestStatsService.GetCurrentStats();
 
         string cpuDataPoints = "[]";
         string memoryDataPoints = "[]";
         string timeLabels = "[]";
-        string requestsPerSecondDataPoints = "[]";
-        string requestsTimeLabels = "[]";
 
         var currentTime = DateTime.Now.ToString("HH:mm:ss");
 
@@ -41,10 +38,6 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
             memoryDataPoints = $"[{avgMemory.ToString(CultureInfo.InvariantCulture)}]";
             timeLabels = $"['{currentTime}']";
         }
-
-        
-        requestsPerSecondDataPoints = $"[{requestStats.RequestsPerSecond.ToString(CultureInfo.InvariantCulture)}]";
-        requestsTimeLabels = $"['{currentTime}']";
 
         var html = $@"
 <!DOCTYPE html>
@@ -117,22 +110,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
 <body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
     <div class='container-fluid h-100'>
         <div class='row mb-4'>
-            <div class='col-md-6 col-12'>
-                <div class='mb-3'>
-                    <h2>Request Statistics</h2>
-                </div>
-                <div class='mb-3'>
-                    <div class='card bg-dark-subtle shadow-sm'>
-                        <div class='card-body'>
-                            <div class='chart-container'>
-                                <canvas id='requestsChart'></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class='col-md-6 col-12'>
+            <div class='col-12'>
                 <div class='mb-3'>
                     <h2>Cluster Resources</h2>
                 </div>
@@ -223,20 +201,14 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
             const newCpuData = {cpuDataPoints};
             const newMemoryData = {memoryDataPoints};
             const newTimeLabel = {timeLabels};
-            const newRequestsData = {requestsPerSecondDataPoints};
-            const newRequestsTimeLabel = {requestsTimeLabels};
             const MAX_DATA_POINTS = 30;
             let cpuData = [];
             let memoryData = [];
             let labels = [];
-            let requestsData = [];
-            let requestsLabels = [];
             try {{
                 const storedCpuData = JSON.parse(localStorage.getItem('cpuData')) || [];
                 const storedMemoryData = JSON.parse(localStorage.getItem('memoryData')) || [];
                 const storedLabels = JSON.parse(localStorage.getItem('timeLabels')) || [];
-                const storedRequestsData = JSON.parse(localStorage.getItem('requestsData')) || [];
-                const storedRequestsLabels = JSON.parse(localStorage.getItem('requestsTimeLabels')) || [];
                 
                 if(newCpuData.length > 0 && newMemoryData.length > 0 && newTimeLabel.length > 0) {{
                     if(storedLabels.length === 0 || storedLabels[storedLabels.length-1] !== newTimeLabel[0]) {{
@@ -256,46 +228,33 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
                     memoryData = storedMemoryData;
                     labels = storedLabels;
                 }}
-                
-                if(newRequestsData.length > 0 && newRequestsTimeLabel.length > 0) {{
-                    if(storedRequestsLabels.length === 0 || storedRequestsLabels[storedRequestsLabels.length-1] !== newRequestsTimeLabel[0]) {{
-                        requestsData = [...storedRequestsData, ...newRequestsData].slice(-MAX_DATA_POINTS);
-                        requestsLabels = [...storedRequestsLabels, ...newRequestsTimeLabel].slice(-MAX_DATA_POINTS);
-                        localStorage.setItem('requestsData', JSON.stringify(requestsData));
-                        localStorage.setItem('requestsTimeLabels', JSON.stringify(requestsLabels));
-                    }} else {{
-                        requestsData = storedRequestsData;
-                        requestsLabels = storedRequestsLabels;
-                    }}
-                }} else {{
-                    requestsData = storedRequestsData;
-                    requestsLabels = storedRequestsLabels;
-                }}
             }} catch (e) {{
                 console.error('Error loading chart data:', e);
                 localStorage.removeItem('cpuData');
                 localStorage.removeItem('memoryData');
                 localStorage.removeItem('timeLabels');
-                localStorage.removeItem('requestsData');
-                localStorage.removeItem('requestsTimeLabels');
             }}
-            window.resourceChart = window.resourceChart || null;
-            window.requestsChart = window.requestsChart || null;
+            
+            // Keep track of chart instance in window object
+            window.chartInstances = window.chartInstances || {{}};
+            
             window.initCharts = function() {{
-                if(window.resourceChart && typeof window.resourceChart.destroy === 'function') {{
-                    window.resourceChart.destroy();
-                    window.resourceChart = null;
+                // Safely destroy existing chart if it exists
+                if(window.chartInstances.resourceChart) {{
+                    window.chartInstances.resourceChart.destroy();
+                    window.chartInstances.resourceChart = null;
                 }}
                 
-                if(window.requestsChart && typeof window.requestsChart.destroy === 'function') {{
-                    window.requestsChart.destroy();
-                    window.requestsChart = null;
-                }}
-                
+                // Check if canvas exists before trying to initialize
                 const resourceCanvas = document.getElementById('resourceChart');
-                if(resourceCanvas) {{
+                if(!resourceCanvas) {{
+                    console.error('Resource chart canvas not found');
+                    return;
+                }}
+                
+                try {{
                     const resourceCtx = resourceCanvas.getContext('2d');
-                    window.resourceChart = new Chart(resourceCtx, {{
+                    window.chartInstances.resourceChart = new Chart(resourceCtx, {{
                         type: 'line',
                         data: {{
                             labels: labels,
@@ -338,47 +297,18 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
                             }}
                         }}
                     }});
-                }}
-                
-                const requestsCanvas = document.getElementById('requestsChart');
-                if(requestsCanvas) {{
-                    const requestsCtx = requestsCanvas.getContext('2d');
-                    window.requestsChart = new Chart(requestsCtx, {{
-                        type: 'line',
-                        data: {{
-                            labels: requestsLabels,
-                            datasets: [
-                                {{
-                                    label: 'Requests Per Second',
-                                    data: requestsData,
-                                    borderColor: 'rgba(54, 162, 235, 1)',
-                                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                                    borderWidth: 2,
-                                    tension: 0.2,
-                                    fill: true
-                                }}
-                            ]
-                        }},
-                        options: {{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            scales: {{
-                                y: {{
-                                    title: {{
-                                        display: true,
-                                        text: 'Requests/sec'
-                                    }}
-                                }}
-                            }},
-                            animation: {{
-                                duration: 0
-                            }}
-                        }}
-                    }});
+                }} catch (error) {{
+                    console.error('Error initializing chart:', error);
                 }}
             }};
-            document.addEventListener('DOMContentLoaded', window.initCharts);
-            window.initCharts();
+            
+            // Initialize charts when DOM is loaded
+            if (document.readyState === 'loading') {{
+                document.addEventListener('DOMContentLoaded', window.initCharts);
+            }} else {{
+                // DOM already loaded, run initialization
+                window.initCharts();
+            }}
         }})();
     </script>
 </body>

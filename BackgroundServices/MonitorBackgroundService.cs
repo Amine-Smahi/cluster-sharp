@@ -9,6 +9,7 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
 {
     private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(1000);
     private readonly TimeSpan _errorInterval = TimeSpan.FromMilliseconds(5000);
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -16,39 +17,49 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
         {
             try
             {
-                var cluster = ClusterHelper.GetClusterSetup();
-                if (cluster == null)
+                await _semaphore.WaitAsync(stoppingToken);
+                
+                try
                 {
-                    Console.WriteLine("Error retrieving cluster setup");
-                    await Task.Delay(_errorInterval, stoppingToken);
-                    continue;
-                }
-                
-                var nodeProcessingTasks = cluster.Nodes
-                    .Select(x => x.Hostname)
-                    .Select(x => ProcessNodeAsync(x, cluster.Admin.Username, cluster.Admin.Password))
-                    .ToList();
-                
-                var processedNodes = await Task.WhenAll(nodeProcessingTasks);
-                
-                var clusterInfo = processedNodes.Where(node => node != null).ToList();
-                if(clusterInfo.Count == 0)
-                {
-                    Console.WriteLine("No machine stats retrieved.");
-                    await Task.Delay(_errorInterval, stoppingToken);
-                    continue;
-                }
+                    var cluster = ClusterHelper.GetClusterSetup();
+                    if (cluster == null)
+                    {
+                        Console.WriteLine("Error retrieving cluster setup");
+                        await Task.Delay(_errorInterval, stoppingToken);
+                        continue;
+                    }
+                    
+                    var nodeProcessingTasks = cluster.Nodes
+                        .Select(x => x.Hostname)
+                        .Select(x => ProcessNodeAsync(x, cluster.Admin.Username, cluster.Admin.Password))
+                        .ToList();
+                    
+                    var processedNodes = await Task.WhenAll(nodeProcessingTasks);
+                    
+                    var clusterInfo = processedNodes.Where(node => node != null).ToList();
+                    if(clusterInfo.Count == 0)
+                    {
+                        Console.WriteLine("No machine stats retrieved.");
+                        await Task.Delay(_errorInterval, stoppingToken);
+                        continue;
+                    }
 
-                FileHelper.SetContentToFile("Assets/machine-info.json", clusterInfo, out var errorMessage);
-                if (errorMessage != null)
-                {
-                    Console.WriteLine($"Error writing machine info to file: {errorMessage}");
-                    await Task.Delay(_errorInterval, stoppingToken);
-                    continue;
-                }
+                    FileHelper.SetContentToFile("Assets/machine-info.json", clusterInfo, out var errorMessage);
+                    if (errorMessage != null)
+                    {
+                        Console.WriteLine($"Error writing machine info to file: {errorMessage}");
+                        await Task.Delay(_errorInterval, stoppingToken);
+                        continue;
+                    }
 
-                clusterOverviewService.UpdateMachineInfo();
-                await Task.Delay(_successInterval, stoppingToken);
+                    clusterOverviewService.UpdateMachineInfo();
+                    await Task.Delay(_successInterval, stoppingToken);
+                }
+                finally
+                {
+                    // Always release the semaphore
+                    _semaphore.Release();
+                }
             }
             catch (Exception e)
             {

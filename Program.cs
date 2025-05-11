@@ -32,6 +32,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
 builder.Services.AddSingleton<RequestStatsService>();
+builder.Services.AddSingleton<ClusterSetupService>();
 
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -166,6 +167,9 @@ app.Lifetime.ApplicationStarted.Register(() => {
 
     ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
     Console.WriteLine($"ThreadPool Min Threads: Worker={workerThreads}, Completion={completionPortThreads}");
+    
+    // Initialize ClusterHelper with service provider
+    ClusterHelper.Initialize(app.Services);
 });
 
 
