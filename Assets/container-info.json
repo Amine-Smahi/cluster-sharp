@@ -7,7 +7,22 @@
       "Memory": 0,
       "Disk": 0
     },
-    "Containers": []
+    "Containers": [
+      {
+        "Name": "registry",
+        "Cpu": 0.08,
+        "Memory": 0.18,
+        "Disk": "0B (virtual 25.4MB)",
+        "external_port": "5000"
+      },
+      {
+        "Name": "amine.com",
+        "Cpu": 0.08,
+        "Memory": 0.08,
+        "Disk": "0B (virtual 14.5MB)",
+        "external_port": "8080"
+      }
+    ]
   },
   {
     "hostname": "node1",
@@ -17,6 +32,14 @@
       "Memory": 0,
       "Disk": 0
     },
-    "Containers": []
+    "Containers": [
+      {
+        "Name": "amine.com",
+        "Cpu": 0.07,
+        "Memory": 0.07,
+        "Disk": "0B (virtual 14.5MB)",
+        "external_port": "8080"
+      }
+    ]
   }
 ]

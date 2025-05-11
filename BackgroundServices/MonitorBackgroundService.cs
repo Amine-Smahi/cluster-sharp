@@ -7,41 +7,48 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _monitorInterval = TimeSpan.FromMilliseconds(100);
-    public static Dictionary<string, bool> MachineStatus { get; } = new();
-
+    private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(1000);
+    private readonly TimeSpan _errorInterval = TimeSpan.FromMilliseconds(5000);
+    
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await Task.Delay(_monitorInterval, stoppingToken);
-            
             try
             {
                 var cluster = ClusterHelper.GetClusterSetup();
                 if (cluster == null)
                 {
                     Console.WriteLine("Error retrieving cluster setup");
+                    await Task.Delay(_errorInterval, stoppingToken);
                     continue;
                 }
                 
                 var nodeProcessingTasks = cluster.Nodes
                     .Select(x => x.Hostname)
-                    .Select(ProcessNodeAsync)
+                    .Select(x => ProcessNodeAsync(x, cluster.Admin.Username, cluster.Admin.Password))
                     .ToList();
                 
                 var processedNodes = await Task.WhenAll(nodeProcessingTasks);
                 
                 var clusterInfo = processedNodes.Where(node => node != null).ToList();
-                
+                if(clusterInfo.Count == 0)
+                {
+                    Console.WriteLine("No machine stats retrieved.");
+                    await Task.Delay(_errorInterval, stoppingToken);
+                    continue;
+                }
+
                 FileHelper.SetContentToFile("Assets/machine-info.json", clusterInfo, out var errorMessage);
                 if (errorMessage != null)
                 {
                     Console.WriteLine($"Error writing machine info to file: {errorMessage}");
+                    await Task.Delay(_errorInterval, stoppingToken);
                     continue;
                 }
 
                 clusterOverviewService.UpdateMachineInfo();
+                await Task.Delay(_successInterval, stoppingToken);
             }
             catch (Exception e)
             {
@@ -50,18 +57,16 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
         }
     }
     
-    private async Task<Node?> ProcessNodeAsync(string worker)
+    private async Task<Node?> ProcessNodeAsync(string worker, string username, string password)
     {
         return await Task.Run(() => {
-            var machineStats = SshHelper.GetMachineStats(worker);
-            if (machineStats == null)
+            var machineStats = SshHelper.GetMachineStats(worker, username, password);
+            if(machineStats == null)
             {
                 Console.WriteLine($"Error retrieving machine stats for {worker}");
-                MachineStatus[worker] = false;
                 return null;
             }
-
-            MachineStatus[worker] = true;
+            
             return new Node
             {
                 Hostname = worker,

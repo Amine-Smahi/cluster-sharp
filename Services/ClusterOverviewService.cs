@@ -64,8 +64,6 @@ public class ClusterOverviewService
             return;
             
         var overview = new ClusterOverview();
-        
-        // Process machines
         if (_machineInfo != null)
         {
             overview.Machines = _machineInfo.Select(x => new Machine
@@ -75,8 +73,6 @@ public class ClusterOverviewService
                 Memory = x.MachineStats.Memory
             }).ToList();
         }
-        
-        // Process containers
         if (_containerInfo != null)
         {
             overview.Containers = _containerInfo

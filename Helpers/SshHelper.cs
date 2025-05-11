@@ -255,7 +255,7 @@ public static class SshHelper
         return string.Empty;
     }
 
-    public static MachineStats? GetMachineStats(string hostname)
+    public static MachineStats? GetMachineStats(string hostname, string username, string password)
     {
         var clusterInfo = ClusterHelper.GetClusterSetup();
         if (clusterInfo == null)
@@ -263,7 +263,7 @@ public static class SshHelper
         
         try
         {
-            var client = GetOrCreateConnection(hostname, clusterInfo.Admin.Username, clusterInfo.Admin.Password);
+            var client = GetOrCreateConnection(hostname, username, password);
 
             var statsCommand = @"echo ""CPU $(LC_ALL=C top -bn1 | grep ""Cpu(s)"" | sed ""s/.*, *\([0-9.]*\)%* id.*/\1/"" | awk '{printf(""%.1f%%"", 100-$1)}')  RAM $(free -m | awk '/Mem:/ { printf(""%.1f%%"", $3/$2*100) }')  DISK $(df -h / | awk 'NR==2 {print $5}')"" ";
             using var cmd = client.CreateCommand(statsCommand);

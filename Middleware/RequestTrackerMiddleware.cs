@@ -2,29 +2,19 @@ using ClusterSharp.Api.Services;
 
 namespace ClusterSharp.Api.Middleware;
 
-public class RequestTrackerMiddleware
+public class RequestTrackerMiddleware(RequestDelegate next, RequestStatsService requestStatsService)
 {
-    private readonly RequestDelegate _next;
-    private readonly RequestStatsService _requestStatsService;
-
-    public RequestTrackerMiddleware(RequestDelegate next, RequestStatsService requestStatsService)
-    {
-        _next = next;
-        _requestStatsService = requestStatsService;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
-        _requestStatsService.RecordRequest();
-        await _next(context);
+        requestStatsService.RecordRequest();
+        await next(context);
     }
 }
 
-
 public static class RequestTrackerMiddlewareExtensions
 {
-    public static IApplicationBuilder UseRequestTracker(this IApplicationBuilder builder)
+    public static void UseRequestTracker(this IApplicationBuilder builder)
     {
-        return builder.UseMiddleware<RequestTrackerMiddleware>();
+        builder.UseMiddleware<RequestTrackerMiddleware>();
     }
 } 

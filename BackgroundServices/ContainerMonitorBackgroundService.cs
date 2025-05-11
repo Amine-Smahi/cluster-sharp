@@ -7,20 +7,20 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _monitorInterval = TimeSpan.FromMilliseconds(100);
+    private readonly TimeSpan _successInterval = TimeSpan.FromMilliseconds(100);
+    private readonly TimeSpan _errorInterval = TimeSpan.FromMilliseconds(5000);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await Task.Delay(_monitorInterval, stoppingToken);
-            
             try
             {
                 var cluster = ClusterHelper.GetClusterSetup();
                 if (cluster == null)
                 {
                     Console.WriteLine("Error retrieving cluster setup");
+                    await Task.Delay(_errorInterval, stoppingToken);
                     continue;
                 }
                 
@@ -33,6 +33,13 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
                 
                 var clusterInfo = processedNodes.Where(node => node != null).ToList();
                 
+                if(clusterInfo.Count == 0)
+                {
+                    Console.WriteLine("No container stats retrieved.");
+                    await Task.Delay(_errorInterval, stoppingToken);
+                    continue;
+                }
+
                 FileHelper.SetContentToFile("Assets/container-info.json", clusterInfo, out var errorMessage);
                 if (errorMessage != null)
                 {
@@ -41,6 +48,7 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
                 }
 
                 clusterOverviewService.UpdateContainerInfo();
+                await Task.Delay(_successInterval, stoppingToken);
             }
             catch (Exception e)
             {
@@ -52,28 +60,23 @@ public class ContainerMonitorBackgroundService(ClusterOverviewService clusterOve
     private async Task<Node?> ProcessNodeAsync(string worker)
     {
         return await Task.Run(() => {
-            // Skip processing if machine is down
-            if (MachineMonitorBackgroundService.MachineStatus.TryGetValue(worker, out bool isUp) && !isUp)
-            {
-                return new Node
-                {
-                    Hostname = worker,
-                    MachineStats = new MachineStats(),
-                    Containers = [] // Return empty container list for down machines
-                };
-            }
-            
             var containers = SshHelper.GetDockerContainerStats(worker);
             if (containers == null)
             {
                 Console.WriteLine($"Error retrieving container stats for {worker}");
                 return null;
             }
+            
+            if(containers.Count == 0)
+            {
+                Console.WriteLine($"No containers found on {worker}");
+                return null;
+            }
 
             return new Node
             {
                 Hostname = worker,
-                MachineStats = new MachineStats(), // Empty machine stats since we're only handling containers
+                MachineStats = new MachineStats(), 
                 Containers = containers.Select(c => new ContainerStats
                 {
                     Name = c.Name,

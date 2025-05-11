@@ -114,16 +114,8 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
         }}
     </style>
 </head>
-<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 0.5s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
+<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
     <div class='container-fluid h-100'>
-        <div class='row mb-3'>
-            <div class='col-12 mb-3'>
-                <div class='alert alert-info'>
-                    <strong>YARP Routes:</strong> Last updated at 
-                </div>
-            </div>
-        </div>
-        
         <div class='row mb-4'>
             <div class='col-md-6 col-12'>
                 <div class='mb-3'>

@@ -155,9 +155,7 @@ app.MapOpenApi();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-var overviewService = app.Services.GetRequiredService<ClusterOverviewService>();
 var yarpService = app.Services.GetRequiredService<ClusterYarpService>();
-
 yarpService.UpdateProxyConfig();
 
 app.MapReverseProxy();
@@ -167,9 +165,8 @@ app.Lifetime.ApplicationStarted.Register(() => {
     Console.WriteLine($"Server running on port 80");
     Console.WriteLine($"Processor Count: {Environment.ProcessorCount}");
     Console.WriteLine($"GC Mode: {GCSettings.LatencyMode}");
-    
-    int workerThreads, completionPortThreads;
-    ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
+
+    ThreadPool.GetMinThreads(out var workerThreads, out var completionPortThreads);
     Console.WriteLine($"ThreadPool Min Threads: Worker={workerThreads}, Completion={completionPortThreads}");
 });
 

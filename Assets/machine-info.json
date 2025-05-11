@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "hostname": "control-plane",
+    "role": null,
+    "MachineStats": {
+      "Cpu": 2.3,
+      "Memory": 5.7,
+      "Disk": 8
+    },
+    "Containers": []
+  },
+  {
+    "hostname": "node1",
+    "role": null,
+    "MachineStats": {
+      "Cpu": 2.4,
+      "Memory": 7,
+      "Disk": 8
+    },
+    "Containers": []
+  }
+]

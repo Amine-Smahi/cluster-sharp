@@ -191,7 +191,6 @@ public class ClusterYarpService
             _logger.LogInformation("Updated YARP proxy configuration with {RouteCount} routes and {ClusterCount} clusters", 
                 routes.Count, clusters.Count);
             
-            
             CleanDestinationCache(overview.Containers);
         }
         catch (Exception ex)
