@@ -10,14 +10,14 @@
     "Containers": [
       {
         "Name": "registry",
-        "Cpu": 0.08,
+        "Cpu": 0,
         "Memory": 0.18,
         "Disk": "0B (virtual 25.4MB)",
         "external_port": "5000"
       },
       {
         "Name": "amine.com",
-        "Cpu": 0,
+        "Cpu": 80,
         "Memory": 0.1,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
@@ -35,7 +35,7 @@
     "Containers": [
       {
         "Name": "amine.com",
-        "Cpu": 0,
+        "Cpu": 80,
         "Memory": 0.1,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
@@ -53,8 +53,8 @@
     "Containers": [
       {
         "Name": "amine.com",
-        "Cpu": 0,
-        "Memory": 0.01,
+        "Cpu": 80,
+        "Memory": 0.02,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
       }

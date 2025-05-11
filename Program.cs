@@ -3,6 +3,7 @@ using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Helpers;
+using ClusterSharp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,19 +25,29 @@ builder.Services.AddFastEndpoints(options => {
     options.SourceGeneratorDiscoveredTypes = new List<Type>();
 });
 
+builder.Services.AddHttpClient("ReverseProxyClient")
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false,
+        UseProxy = false,
+        MaxConnectionsPerServer = 1000,
+        EnableMultipleHttp2Connections = true,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(5)
+    });
+
 var app = builder.Build();
 
-// Initialize the ClusterHelper with the service provider
 ClusterHelper.Initialize(app.Services);
-
-// Register to close all SSH connections when application is shutting down
-app.Lifetime.ApplicationStopping.Register(() => SshHelper.CloseAllConnections());
+app.Lifetime.ApplicationStopping.Register(SshHelper.CloseAllConnections);
+app.UseReverseProxy();
 
 app.UseRouting();
 
-app.UseFastEndpoints(config => {
-    config.Serializer.Options.PropertyNamingPolicy = null;
-});
+app.UseFastEndpoints(config => config.Serializer.Options.PropertyNamingPolicy = null);
 
 app.MapOpenApi();
 

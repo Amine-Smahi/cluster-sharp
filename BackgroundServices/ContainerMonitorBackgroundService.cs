@@ -47,7 +47,7 @@ public class ContainerMonitorBackgroundService(
                         await Task.Delay(_errorInterval, stoppingToken);
                         continue;
                     }
-
+                    
                     FileHelper.SetContentToFile("Assets/container-info.json", clusterInfo, out var errorMessage);
                     if (errorMessage != null)
                     {
