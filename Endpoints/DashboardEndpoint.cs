@@ -1,5 +1,4 @@
 using System.Globalization;
-using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 
@@ -23,9 +22,9 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, RequestSt
     {
         var overview = overviewService.Overview;
 
-        string cpuDataPoints = "[]";
-        string memoryDataPoints = "[]";
-        string timeLabels = "[]";
+        var cpuDataPoints = "[]";
+        var memoryDataPoints = "[]";
+        var timeLabels = "[]";
 
         var currentTime = DateTime.Now.ToString("HH:mm:ss");
 

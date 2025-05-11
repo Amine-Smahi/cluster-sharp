@@ -1,9 +1,6 @@
 using ClusterSharp.Api.Models.Cluster;
-using ClusterSharp.Api.Models.Overview;
-using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Services;
 using ClusterSharp.Api.Shared;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace ClusterSharp.Api.Helpers;
 

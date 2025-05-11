@@ -2,7 +2,6 @@ using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Services;
-using ClusterSharp.Api.Shared;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
