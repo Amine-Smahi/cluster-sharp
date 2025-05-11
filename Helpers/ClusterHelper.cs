@@ -32,38 +32,52 @@ public static class ClusterHelper
 
     public static void GenerateClusterOverview()
     {
-        var clusterInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/cluster-info.json", out var errorMessage);
-        if (clusterInfo == null)
+        var machineInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/machine-info.json", out var machineErrorMessage);
+        var containerInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/container-info.json", out var containerErrorMessage);
+        
+        if (machineInfo == null)
         {
-            Console.WriteLine(errorMessage);
-            return;
+            Console.WriteLine(machineErrorMessage);
+            // Continue with container info only
         }
-
-        var containerMap = new Dictionary<string, List<(string Hostname, MachineStats MachineStats)>>();
-        foreach (var node in clusterInfo)
+        
+        if (containerInfo == null)
         {
-            foreach (var container in node.Containers)
+            Console.WriteLine(containerErrorMessage);
+            // Continue with machine info only
+        }
+        
+        var overview = new ClusterOverview();
+        
+        // Process machines
+        if (machineInfo != null)
+        {
+            overview.Machines = machineInfo.Select(x => new Machine
             {
-                if (!containerMap.ContainsKey(container.Name))
-                    containerMap[container.Name] = [];
-                containerMap[container.Name].Add((node.Hostname, node.MachineStats));
-            }
+                Hostname = x.Hostname,
+                Cpu = x.MachineStats.Cpu,
+                Memory = x.MachineStats.Memory
+            }).ToList();
         }
-
-        var overview = new ClusterOverview
+        
+        // Process containers
+        if (containerInfo != null)
         {
-            Containers = clusterInfo.SelectMany(x => x.Containers)
+            overview.Containers = containerInfo
+                .SelectMany(x => x.Containers)
                 .GroupBy(x => x.Name)
                 .Select(x => x.ToList())
                 .Select(x =>
                 {
+                    if (x.Count == 0) return null;
+                    
                     var container = new Container
                     {
                         Name = x.First().Name,
                         Replicas = x.Count,
                         ExternalPort = x.First().ExternalPort
                     };
-                    container.ContainerOnHostStatsList = clusterInfo
+                    container.ContainerOnHostStatsList = containerInfo
                         .Where(y => y.Containers.Any(c => c.Name == container.Name))
                         .Select(y => 
                         {
@@ -77,16 +91,12 @@ public static class ClusterHelper
                         })
                         .ToList();
                     return container;
-                }).ToList(),
-            Machines = clusterInfo.Select(x => new Machine
-            {
-                Hostname = x.Hostname,
-                Cpu = x.MachineStats.Cpu,
-                Memory = x.MachineStats.Memory
-            }).ToList()
-        };
+                })
+                .Where(x => x != null)
+                .ToList()!;
+        }
 
-        FileHelper.SetContentToFile("Assets/overview.json", overview, out errorMessage);
+        FileHelper.SetContentToFile("Assets/overview.json", overview, out var errorMessage);
         if (errorMessage != null)
             Console.WriteLine($"Error writing overview to file: {errorMessage}");
     }

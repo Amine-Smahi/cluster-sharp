@@ -118,7 +118,8 @@ builder.Services.AddDistributedMemoryCache(options =>
     options.CompactionPercentage = 0.2;    
 });
 
-builder.Services.AddHostedService<MonitorBackgroundService>();
+builder.Services.AddHostedService<MachineMonitorBackgroundService>();
+builder.Services.AddHostedService<ContainerMonitorBackgroundService>();
 builder.Services.AddHostedService<UpdateBackgroundService>();
 builder.Services.AddHostedService<RequestStatsBackgroundService>();
 
