@@ -1,7 +1,7 @@
 using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
-using ClusterSharp.Api.Middleware;
+using ClusterSharp.Api.Models.Cluster;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,13 +11,13 @@ builder.Logging.AddFilter("Yarp.ReverseProxy.Health.ActiveHealthCheckMonitor", L
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
-builder.Services.AddSingleton<RequestStatsService>();
 builder.Services.AddSingleton<ClusterSetupService>();
+builder.Services.AddSingleton<ProxyRule>();
 
 builder.Services.AddHostedService<MachineMonitorBackgroundService>();
 builder.Services.AddHostedService<ContainerMonitorBackgroundService>();
 builder.Services.AddHostedService<UpdateBackgroundService>();
-builder.Services.AddHostedService<RequestStatsBackgroundService>();
+builder.Services.AddHostedService<ProxyUpdaterBackgroundService>();
 
 builder.Services.AddFastEndpoints(options => {
     options.SourceGeneratorDiscoveredTypes = new List<Type>();
@@ -26,8 +26,6 @@ builder.Services.AddFastEndpoints(options => {
 var app = builder.Build();
 
 app.UseRouting();
-
-app.UseRequestTracker();
 
 app.UseFastEndpoints(config => {
     config.Serializer.Options.PropertyNamingPolicy = null;
