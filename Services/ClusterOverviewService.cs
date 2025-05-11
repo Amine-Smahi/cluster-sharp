@@ -7,45 +7,42 @@ namespace ClusterSharp.Api.Services;
 public class ClusterOverviewService
 {
     public ClusterOverview Overview { get; } = new ();
-
-    private List<Node>? _machineInfo;
-    private List<Node>? _containerInfo;
     
     public void UpdateMachineInfo()
     {
-        _machineInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/machine-info.json", out var errorMessage);
+        var machineInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/machine-info.json", out var errorMessage);
         if (errorMessage != null)
             Console.WriteLine($"Error loading machine info: {errorMessage}");
             
-        GenerateOverview();
+        GenerateOverview(machineInfo, null);
     }
     
     public void UpdateContainerInfo()
     {
-        _containerInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/container-info.json", out var errorMessage);
+        var containerInfo = FileHelper.GetContentFromFile<List<Node>>("Assets/container-info.json", out var errorMessage);
         if (errorMessage != null)
             Console.WriteLine($"Error loading container info: {errorMessage}");
             
-        GenerateOverview();
+        GenerateOverview(null, containerInfo);
     }
     
-    private void GenerateOverview()
+    private void GenerateOverview(List<Node>? machineInfo, List<Node>? containerInfo)
     {
-        if (_machineInfo == null && _containerInfo == null)
+        if (machineInfo == null && containerInfo == null)
             return;
             
-        if (_machineInfo != null)
+        if (machineInfo != null)
         {
-            Overview.Machines = _machineInfo.Select(x => new Machine
+            Overview.Machines = machineInfo.Select(x => new Machine
             {
                 Hostname = x.Hostname,
                 Cpu = x.MachineStats.Cpu,
                 Memory = x.MachineStats.Memory
             }).ToList();
         }
-        if (_containerInfo != null)
+        if (containerInfo != null)
         {
-            Overview.Containers = _containerInfo
+            Overview.Containers = containerInfo
                 .SelectMany(x => x.Containers)
                 .GroupBy(x => x.Name)
                 .Select(x => x.ToList())
@@ -57,7 +54,7 @@ public class ClusterOverviewService
                         Replicas = x.Count,
                         ExternalPort = x.First().ExternalPort
                     };
-                    container.ContainerOnHostStatsList = _containerInfo
+                    container.ContainerOnHostStatsList = containerInfo
                         .Where(y => y.Containers.Any(c => c.Name == container.Name))
                         .Select(y => 
                         {

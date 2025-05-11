@@ -13,7 +13,7 @@ public class UpdateClusterSetupEndpoint(ClusterSetupService clusterSetupService)
     
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var result = await clusterSetupService.UpdateClusterSetupAsync();
+        var result = clusterSetupService.UpdateClusterSetupAsync();
         
         if (result)
         {
