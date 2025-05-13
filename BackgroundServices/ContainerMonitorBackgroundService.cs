@@ -6,8 +6,7 @@ using ClusterSharp.Api.Services;
 namespace ClusterSharp.Api.BackgroundServices;
 
 public class ContainerMonitorBackgroundService(
-    ClusterOverviewService clusterOverviewService,
-    ProxyUpdaterService proxyUpdaterService)
+    ClusterOverviewService clusterOverviewService)
     : BackgroundService
 {
     private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(30);
@@ -56,7 +55,6 @@ public class ContainerMonitorBackgroundService(
                     }
 
                     clusterOverviewService.UpdateContainerInfo();
-                    proxyUpdaterService.UpdateProxyRulesIfNeeded();
                     await Task.Delay(_successInterval, stoppingToken);
                 }
                 finally

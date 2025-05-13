@@ -5,7 +5,7 @@ using FastEndpoints;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class DashboardEndpoint(ClusterOverviewService overviewService, IProxyRuleService proxyRuleService) : EndpointWithoutRequest
+public class DashboardEndpoint(ClusterOverviewService overviewService) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -196,38 +196,6 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, IProxyRul
                     </div>
                 </div>
             </div>")) : "<div class='col-12'><div class='alert alert-warning'>No container data available</div></div>")}
-        </div>
-
-        <div class='row mb-3'>
-            <div class='col-12 mb-3'>
-                <h2>Proxy Rules</h2>
-            </div>
-            {(proxyRuleService.Rules.Count > 0 
-                ? string.Join("", proxyRuleService.Rules.Select(rule => $@"
-                <div class='col-xl-4 col-lg-6 col-md-6 col-sm-12 mb-3'>
-                    <div class='card bg-dark-subtle shadow-sm proxy-card'>
-                        <div class='card-body'>
-                            <h5 class='card-title'>{rule.Key}</h5>
-                            <div class='mt-3'>
-                                <table class='table table-sm table-dark table-bordered mb-0'>
-                                    <thead>
-                                        <tr>
-                                            <th scope='col' colspan='2'>Endpoints</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {string.Join("", rule.Value.Select((endpoint, index) => $@"
-                                            <tr>
-                                                <td width='30'>{index + 1}</td>
-                                                <td>{endpoint}</td>
-                                            </tr>"))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>"))
-                : "<div class='col-12'><div class='alert alert-warning'>No proxy rules available</div></div>")}
         </div>
     </div>
 
