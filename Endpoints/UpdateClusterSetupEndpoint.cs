@@ -14,14 +14,10 @@ public class UpdateClusterSetupEndpoint(ClusterSetupService clusterSetupService)
     public override async Task HandleAsync(CancellationToken ct)
     {
         var result = clusterSetupService.UpdateClusterSetupAsync();
-        
+
         if (result)
-        {
             await SendOkAsync(ct);
-        }
         else
-        {
             await SendErrorsAsync(StatusCodes.Status500InternalServerError, ct);
-        }
     }
 } 

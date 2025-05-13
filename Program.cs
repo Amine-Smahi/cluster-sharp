@@ -7,9 +7,6 @@ using ClusterSharp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Logging.AddFilter("Yarp.ReverseProxy.Forwarder.HttpForwarder", LogLevel.Error);
-builder.Logging.AddFilter("Yarp.ReverseProxy.Health.ActiveHealthCheckMonitor", LogLevel.Error);
-
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
@@ -21,9 +18,7 @@ builder.Services.AddHostedService<MachineMonitorBackgroundService>();
 builder.Services.AddHostedService<ContainerMonitorBackgroundService>();
 builder.Services.AddHostedService<UpdateBackgroundService>();
 
-builder.Services.AddFastEndpoints(options => {
-    options.SourceGeneratorDiscoveredTypes = new List<Type>();
-});
+builder.Services.AddFastEndpoints(options => options.SourceGeneratorDiscoveredTypes = []);
 
 builder.Services.AddHttpClient("ReverseProxyClient")
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
@@ -31,17 +26,16 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         AllowAutoRedirect = false,
         UseCookies = false,
         UseProxy = false,
-        MaxConnectionsPerServer = 1000,
-        EnableMultipleHttp2Connections = true,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(1),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
-        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(5)
+        KeepAlivePingDelay = TimeSpan.FromSeconds(1),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(30)
     });
 
 var app = builder.Build();
 
 ClusterHelper.Initialize(app.Services);
+
 app.Lifetime.ApplicationStopping.Register(SshHelper.CloseAllConnections);
 app.UseReverseProxy();
 
