@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Collections.Concurrent;
 using ClusterSharp.Api.Models.Cluster;
 using Microsoft.Extensions.Primitives;
 
@@ -10,12 +11,13 @@ namespace ClusterSharp.Api.Middleware
         private readonly ILogger<ReverseProxyMiddleware> _logger;
         private readonly ProxyRule _proxyRule;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly Dictionary<string, int> _currentIndexes = new();
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        
+        private readonly ConcurrentDictionary<string, int> _currentIndexes = new();
+        private readonly ConcurrentDictionary<string, EndpointCircuitState> _circuitBreakers = new();
         
         private readonly int _failureThreshold = 3;
         private readonly TimeSpan _breakerResetTimeout = TimeSpan.FromMinutes(1);
-        private readonly Dictionary<string, EndpointCircuitState> _circuitBreakers = new();
+        private readonly TimeSpan _requestTimeout = TimeSpan.FromSeconds(30);
 
         public ReverseProxyMiddleware(
             RequestDelegate next,
@@ -45,6 +47,13 @@ namespace ClusterSharp.Api.Middleware
                 await ProxyRequest(context, targetHost);
                 await ResetCircuitBreakerOnSuccessAsync(targetHost);
             }
+            catch (TaskCanceledException)
+            {
+                _logger.LogWarning("Request to {TargetHost} timed out after {Timeout} seconds", targetHost, _requestTimeout.TotalSeconds);
+                await RecordFailureAsync(targetHost);
+                context.Response.StatusCode = 504;
+                await context.Response.WriteAsync("Request to upstream server timed out");
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in proxy middleware for host {Host} to target {Target}", host, targetHost);
@@ -54,72 +63,61 @@ namespace ClusterSharp.Api.Middleware
             }
         }
 
-        private async Task<string> DetermineTargetHostAsync(string host)
+        private Task<string> DetermineTargetHostAsync(string host)
         {
             if (!_proxyRule.Rules.TryGetValue(host, out var endpoints) || endpoints.Count == 0)
-                return string.Empty;
+                return Task.FromResult(string.Empty);
 
             if (endpoints.Count == 1)
             {
                 var endpoint = endpoints[0];
-                if (IsCircuitOpen(endpoint))
-                {
-                    _logger.LogWarning("Circuit is open for the only available endpoint {Endpoint}", endpoint);
-                    return string.Empty;
-                }
-                return endpoint;
+                if (!IsCircuitOpen(endpoint)) 
+                    return Task.FromResult(endpoint);
+                
+                _logger.LogWarning("Circuit is open for the only available endpoint {Endpoint}", endpoint);
+                return Task.FromResult(string.Empty);
             }
             
-            await _lock.WaitAsync();
-            try
+            var availableEndpoints = endpoints.Where(e => !IsCircuitOpen(e)).ToList();
+            
+            if (availableEndpoints.Count == 0)
             {
-                var availableEndpoints = endpoints.Where(e => !IsCircuitOpen(e)).ToList();
+                _logger.LogWarning("All endpoints for {Host} are in open circuit state", host);
                 
-                if (availableEndpoints.Count == 0)
-                {
-                    _logger.LogWarning("All endpoints for {Host} are in open circuit state", host);
-                    var halfOpenEndpoints = endpoints.Where(e => IsCircuitHalfOpen(e)).ToList();
-                    if (halfOpenEndpoints.Count > 0)
-                    {
-                        var endpoint = halfOpenEndpoints[0]; 
-                        _logger.LogInformation("Trying half-open circuit endpoint {Endpoint}", endpoint);
-                        return endpoint;
-                    }
-                    return string.Empty;
-                }
+                var halfOpenEndpoints = endpoints.Where(IsCircuitHalfOpen).ToList();
+                if (halfOpenEndpoints.Count <= 0) 
+                    return Task.FromResult(string.Empty);
                 
-                if (!_currentIndexes.TryGetValue(host, out var currentIndex))
-                {
-                    currentIndex = 0;
-                    _currentIndexes[host] = 0;
-                }
-                
-                var startIndex = currentIndex;
-                string targetHost;
-                
-                do {
-                    var nextIndex = (currentIndex + 1) % endpoints.Count;
-                    targetHost = endpoints[currentIndex];
-                    currentIndex = nextIndex;
-                    
-                    if (!IsCircuitOpen(targetHost))
-                        break;
-                    
-                } while (currentIndex != startIndex);
-                
-                _currentIndexes[host] = currentIndex;
-                
-                return targetHost;
+                var endpoint = halfOpenEndpoints[0];
+                _logger.LogInformation("Trying half-open circuit endpoint {Endpoint}", endpoint);
+                return Task.FromResult(endpoint);
             }
-            finally
-            {
-                _lock.Release();
-            }
+            
+            var currentIndex = _currentIndexes.GetOrAdd(host, _ => 0);
+            
+            var startIndex = currentIndex;
+            string targetHost;
+            
+            do {
+                var nextIndex = (currentIndex + 1) % endpoints.Count;
+                targetHost = endpoints[currentIndex];
+                
+                _currentIndexes.TryUpdate(host, nextIndex, currentIndex);
+                currentIndex = nextIndex;
+                
+                if (!IsCircuitOpen(targetHost))
+                    break;
+                
+            } while (currentIndex != startIndex);
+            
+            return Task.FromResult(targetHost);
         }
 
         private async Task ProxyRequest(HttpContext context, string targetUri)
         {
             var httpClient = _httpClientFactory.CreateClient("ReverseProxy");
+            httpClient.Timeout = _requestTimeout;
+            
             var targetUrl = $"http://{targetUri}{context.Request.Path}{context.Request.QueryString}";
             var requestMessage = new HttpRequestMessage();
             requestMessage.Method = new HttpMethod(context.Request.Method);
@@ -139,8 +137,12 @@ namespace ClusterSharp.Api.Middleware
                 requestMessage.Content = streamContent;
             }
 
+            using var cts = new CancellationTokenSource(_requestTimeout);
+            var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, context.RequestAborted);
+                
             using var responseMessage = await httpClient.SendAsync(requestMessage,
-                HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+                HttpCompletionOption.ResponseHeadersRead, combinedCts.Token);
+                    
             context.Response.StatusCode = (int)responseMessage.StatusCode;
 
             foreach (var header in responseMessage.Headers)
@@ -150,18 +152,25 @@ namespace ClusterSharp.Api.Middleware
                 if (!context.Response.Headers.ContainsKey(header.Key))
                     context.Response.Headers[header.Key] = new StringValues(header.Value.ToArray());
 
-            await responseMessage.Content.CopyToAsync(context.Response.Body);
+            await responseMessage.Content.CopyToAsync(context.Response.Body, combinedCts.Token);
         }
         
         private bool IsCircuitOpen(string endpoint)
         {
             if (!_circuitBreakers.TryGetValue(endpoint, out var state))
                 return false;
-
+  
             if (state.State != CircuitState.Open || DateTime.UtcNow - state.LastFailureTime <= _breakerResetTimeout)
                 return state.State == CircuitState.Open;
-            state.State = CircuitState.HalfOpen;
-            _circuitBreakers[endpoint] = state;
+            
+            var updatedState = new EndpointCircuitState 
+            {
+                State = CircuitState.HalfOpen,
+                FailureCount = state.FailureCount,
+                LastFailureTime = state.LastFailureTime
+            };
+            
+            _circuitBreakers.TryUpdate(endpoint, updatedState, state);
             _logger.LogInformation("Circuit for {Endpoint} changed from Open to Half-Open", endpoint);
             return false;
         }
@@ -174,54 +183,56 @@ namespace ClusterSharp.Api.Middleware
             return state.State == CircuitState.HalfOpen;
         }
         
-        private async Task RecordFailureAsync(string endpoint)
+        private Task RecordFailureAsync(string endpoint)
         {
-            await _lock.WaitAsync();
-            try
-            {
-                if (!_circuitBreakers.TryGetValue(endpoint, out var state))
+            _circuitBreakers.AddOrUpdate(
+                endpoint,
+                _ => new EndpointCircuitState 
+                { 
+                    FailureCount = 1, 
+                    LastFailureTime = DateTime.UtcNow,
+                    State = CircuitState.Closed
+                },
+                (_, existingState) => 
                 {
-                    state = new EndpointCircuitState();
-                }
-                
-                state.FailureCount++;
-                state.LastFailureTime = DateTime.UtcNow;
-                
-                if (state.FailureCount >= _failureThreshold)
-                {
-                    state.State = CircuitState.Open;
+                    var newState = new EndpointCircuitState
+                    {
+                        FailureCount = existingState.FailureCount + 1,
+                        LastFailureTime = DateTime.UtcNow,
+                        State = existingState.State
+                    };
+                    if (newState.FailureCount < _failureThreshold || newState.State == CircuitState.Open)
+                        return newState;
+                    
+                    newState.State = CircuitState.Open;
                     _logger.LogWarning("Circuit breaker opened for endpoint {Endpoint} after {Count} failures", 
-                        endpoint, state.FailureCount);
+                        endpoint, newState.FailureCount);
+
+                    return newState;
                 }
-                
-                _circuitBreakers[endpoint] = state;
-            }
-            finally
-            {
-                _lock.Release();
-            }
+            );
+            
+            return Task.CompletedTask;
         }
         
-        private async Task ResetCircuitBreakerOnSuccessAsync(string endpoint)
+        private Task ResetCircuitBreakerOnSuccessAsync(string endpoint)
         {
-            if (!_circuitBreakers.TryGetValue(endpoint, out var state))
-                return;
+            if (!_circuitBreakers.TryGetValue(endpoint, out var state) || state.State != CircuitState.HalfOpen)
+                return Task.CompletedTask;
             
-            if (state.State == CircuitState.HalfOpen)
-            {
-                await _lock.WaitAsync();
-                try
-                {
-                    state.State = CircuitState.Closed;
-                    state.FailureCount = 0;
-                    _circuitBreakers[endpoint] = state;
-                    _logger.LogInformation("Circuit breaker closed for endpoint {Endpoint} after successful request", endpoint);
-                }
-                finally
-                {
-                    _lock.Release();
-                }
-            }
+            _circuitBreakers.TryUpdate(
+                endpoint,
+                new EndpointCircuitState 
+                { 
+                    State = CircuitState.Closed,
+                    FailureCount = 0,
+                    LastFailureTime = state.LastFailureTime 
+                },
+                state
+            );
+            
+            _logger.LogInformation("Circuit breaker closed for endpoint {Endpoint} after successful request", endpoint);
+            return Task.CompletedTask;
         }
     }
     
@@ -235,8 +246,8 @@ namespace ClusterSharp.Api.Middleware
     public class EndpointCircuitState
     {
         public CircuitState State { get; set; } = CircuitState.Closed;
-        public int FailureCount { get; set; } = 0;
-        public DateTime LastFailureTime { get; set; } = DateTime.MinValue;
+        public int FailureCount { get; init; }
+        public DateTime LastFailureTime { get; init; } = DateTime.MinValue;
     }
 
     public static class ReverseProxyMiddlewareExtensions

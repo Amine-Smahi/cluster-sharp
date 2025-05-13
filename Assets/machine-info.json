@@ -3,7 +3,7 @@
     "hostname": "node2",
     "role": null,
     "MachineStats": {
-      "Cpu": 0,
+      "Cpu": 2.3,
       "Memory": 18.4,
       "Disk": 5
     },
