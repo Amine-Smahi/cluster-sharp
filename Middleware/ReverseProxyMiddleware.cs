@@ -13,8 +13,7 @@ namespace ClusterSharp.Api.Middleware
         private readonly ProxyRule _proxyRule;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ICircuitBreakerService _circuitBreakerService;
-        
-        private readonly ConcurrentDictionary<string, int> _currentIndexes = new();
+        private readonly ILoadBalancerService _loadBalancerService;
         private readonly TimeSpan _requestTimeout;
 
         public ReverseProxyMiddleware(
@@ -23,6 +22,7 @@ namespace ClusterSharp.Api.Middleware
             ProxyRule proxyRule,
             IHttpClientFactory httpClientFactory,
             ICircuitBreakerService circuitBreakerService,
+            ILoadBalancerService loadBalancerService,
             IConfiguration configuration)
         {
             _next = next;
@@ -30,6 +30,7 @@ namespace ClusterSharp.Api.Middleware
             _proxyRule = proxyRule;
             _httpClientFactory = httpClientFactory;
             _circuitBreakerService = circuitBreakerService;
+            _loadBalancerService = loadBalancerService;
             _requestTimeout = TimeSpan.FromSeconds(
                 configuration.GetValue<int>("Proxy:RequestTimeoutSeconds", 30));
         }
@@ -37,7 +38,7 @@ namespace ClusterSharp.Api.Middleware
         public async Task InvokeAsync(HttpContext context)
         {
             var host = context.Request.Host.Host.ToLower();
-            var targetHost = await DetermineTargetHostAsync(host);
+            var targetHost = DetermineTargetHost(host);
 
             if (string.IsNullOrEmpty(targetHost))
             {
@@ -66,54 +67,12 @@ namespace ClusterSharp.Api.Middleware
             }
         }
 
-        private Task<string> DetermineTargetHostAsync(string host)
+        private string DetermineTargetHost(string host)
         {
             if (!_proxyRule.Rules.TryGetValue(host, out var endpoints) || endpoints.Count == 0)
-                return Task.FromResult(string.Empty);
+                return string.Empty;
 
-            if (endpoints.Count == 1)
-            {
-                var endpoint = endpoints[0];
-                if (!_circuitBreakerService.IsCircuitOpen(endpoint)) 
-                    return Task.FromResult(endpoint);
-                
-                _logger.LogWarning("Circuit is open for the only available endpoint {Endpoint}", endpoint);
-                return Task.FromResult(string.Empty);
-            }
-            
-            var availableEndpoints = endpoints.Where(e => !_circuitBreakerService.IsCircuitOpen(e)).ToList();
-            
-            if (availableEndpoints.Count == 0)
-            {
-                _logger.LogWarning("All endpoints for {Host} are in open circuit state", host);
-                
-                var halfOpenEndpoints = endpoints.Where(_circuitBreakerService.IsCircuitHalfOpen).ToList();
-                if (halfOpenEndpoints.Count <= 0) 
-                    return Task.FromResult(string.Empty);
-                
-                var endpoint = halfOpenEndpoints[0];
-                _logger.LogInformation("Trying half-open circuit endpoint {Endpoint}", endpoint);
-                return Task.FromResult(endpoint);
-            }
-            
-            var currentIndex = _currentIndexes.GetOrAdd(host, _ => 0);
-            
-            var startIndex = currentIndex;
-            string targetHost;
-            
-            do {
-                var nextIndex = (currentIndex + 1) % endpoints.Count;
-                targetHost = endpoints[currentIndex];
-                
-                _currentIndexes.TryUpdate(host, nextIndex, currentIndex);
-                currentIndex = nextIndex;
-                
-                if (!_circuitBreakerService.IsCircuitOpen(targetHost))
-                    break;
-                
-            } while (currentIndex != startIndex);
-            
-            return Task.FromResult(targetHost);
+            return _loadBalancerService.GetNextEndpoint(host, endpoints);
         }
 
         private async Task ProxyRequest(HttpContext context, string targetUri)
