@@ -13,6 +13,7 @@ builder.Services.AddSingleton(_ => new ClusterOverviewService());
 builder.Services.AddSingleton<ClusterSetupService>();
 builder.Services.AddSingleton<ProxyRule>();
 builder.Services.AddSingleton<ProxyUpdaterService>();
+builder.Services.AddSingleton<ICircuitBreakerService, CircuitBreakerService>();
 
 builder.Services.AddHostedService<MachineMonitorBackgroundService>();
 builder.Services.AddHostedService<ContainerMonitorBackgroundService>();
