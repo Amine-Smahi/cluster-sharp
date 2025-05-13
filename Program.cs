@@ -2,6 +2,9 @@ using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
+using System.Net;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,11 +25,20 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         AllowAutoRedirect = false,
         UseCookies = false,
         UseProxy = false,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(1),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
-        KeepAlivePingDelay = TimeSpan.FromSeconds(1),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(30)
-    });
+        KeepAlivePingDelay = TimeSpan.FromSeconds(5),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(60),
+        ConnectTimeout = TimeSpan.FromSeconds(30),
+        MaxConnectionsPerServer = 100
+    })
+    .ConfigureHttpClient(client => {
+        client.Timeout = TimeSpan.FromMinutes(2);
+    })
+    .AddPolicyHandler(HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
+        .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
 var app = builder.Build();
 
@@ -35,7 +47,7 @@ ClusterHelper.Initialize(app.Services);
 app.Lifetime.ApplicationStopping.Register(SshHelper.CloseAllConnections);
 app.UseRouting();
 
-app.UseFastEndpoints(config => config.Serializer.Options.PropertyNamingPolicy = null);
+app.UseReverseProxy();
 
 app.MapOpenApi();
 
