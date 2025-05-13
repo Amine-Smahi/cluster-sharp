@@ -6,34 +6,17 @@ using Microsoft.Extensions.Primitives;
 
 namespace ClusterSharp.Api.Middleware
 {
-    public class ReverseProxyMiddleware
+    public class ReverseProxyMiddleware(
+        RequestDelegate next,
+        ILogger<ReverseProxyMiddleware> logger,
+        ProxyRule proxyRule,
+        IHttpClientFactory httpClientFactory,
+        ICircuitBreakerService circuitBreakerService,
+        ILoadBalancerService loadBalancerService,
+        IConfiguration configuration)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ReverseProxyMiddleware> _logger;
-        private readonly ProxyRule _proxyRule;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ICircuitBreakerService _circuitBreakerService;
-        private readonly ILoadBalancerService _loadBalancerService;
-        private readonly TimeSpan _requestTimeout;
-
-        public ReverseProxyMiddleware(
-            RequestDelegate next,
-            ILogger<ReverseProxyMiddleware> logger,
-            ProxyRule proxyRule,
-            IHttpClientFactory httpClientFactory,
-            ICircuitBreakerService circuitBreakerService,
-            ILoadBalancerService loadBalancerService,
-            IConfiguration configuration)
-        {
-            _next = next;
-            _logger = logger;
-            _proxyRule = proxyRule;
-            _httpClientFactory = httpClientFactory;
-            _circuitBreakerService = circuitBreakerService;
-            _loadBalancerService = loadBalancerService;
-            _requestTimeout = TimeSpan.FromSeconds(
-                configuration.GetValue<int>("Proxy:RequestTimeoutSeconds", 30));
-        }
+        private readonly TimeSpan _requestTimeout = TimeSpan.FromSeconds(
+            configuration.GetValue("Proxy:RequestTimeoutSeconds", 30));
 
         public async Task InvokeAsync(HttpContext context)
         {
@@ -42,26 +25,26 @@ namespace ClusterSharp.Api.Middleware
 
             if (string.IsNullOrEmpty(targetHost))
             {
-                await _next(context);
+                await next(context);
                 return;
             }
 
             try
             {
                 await ProxyRequest(context, targetHost);
-                await _circuitBreakerService.ResetCircuitBreakerOnSuccessAsync(targetHost);
+                await circuitBreakerService.ResetCircuitBreakerOnSuccessAsync(targetHost);
             }
             catch (TaskCanceledException)
             {
-                _logger.LogWarning("Request to {TargetHost} timed out after {Timeout} seconds", targetHost, _requestTimeout.TotalSeconds);
-                await _circuitBreakerService.RecordFailureAsync(targetHost);
+                logger.LogWarning("Request to {TargetHost} timed out after {Timeout} seconds", targetHost, _requestTimeout.TotalSeconds);
+                await circuitBreakerService.RecordFailureAsync(targetHost);
                 context.Response.StatusCode = 504;
                 await context.Response.WriteAsync("Request to upstream server timed out");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in proxy middleware for host {Host} to target {Target}", host, targetHost);
-                await _circuitBreakerService.RecordFailureAsync(targetHost);
+                logger.LogError(ex, "Error in proxy middleware for host {Host} to target {Target}", host, targetHost);
+                await circuitBreakerService.RecordFailureAsync(targetHost);
                 context.Response.StatusCode = 500;
                 await context.Response.WriteAsync("Internal server error in proxy");
             }
@@ -69,15 +52,24 @@ namespace ClusterSharp.Api.Middleware
 
         private string DetermineTargetHost(string host)
         {
-            if (!_proxyRule.Rules.TryGetValue(host, out var endpoints) || endpoints.Count == 0)
+            if (!proxyRule.Rules.TryGetValue(host, out var endpoints) || endpoints.Count == 0)
                 return string.Empty;
 
-            return _loadBalancerService.GetNextEndpoint(host, endpoints);
+            var healthyEndpoints = endpoints
+                .Where(endpoint => !circuitBreakerService.IsCircuitOpen(endpoint))
+                .ToList();
+
+            if (healthyEndpoints.Count != 0) 
+                return loadBalancerService.GetNextEndpoint(host, healthyEndpoints);
+            
+            logger.LogWarning("All endpoints for host {Host} have open circuit breakers", host);
+            return string.Empty;
+
         }
 
         private async Task ProxyRequest(HttpContext context, string targetUri)
         {
-            var httpClient = _httpClientFactory.CreateClient("ReverseProxy");
+            var httpClient = httpClientFactory.CreateClient("ReverseProxy");
             httpClient.Timeout = _requestTimeout;
             
             var targetUrl = $"http://{targetUri}{context.Request.Path}{context.Request.QueryString}";
