@@ -9,7 +9,7 @@ namespace ClusterSharp.Api.Middleware
     public class ReverseProxyMiddleware(
         RequestDelegate next,
         ILogger<ReverseProxyMiddleware> logger,
-        ProxyRule proxyRule,
+        IProxyRuleService proxyRuleService,
         IHttpClientFactory httpClientFactory,
         ICircuitBreakerService circuitBreakerService,
         ILoadBalancerService loadBalancerService,
@@ -52,7 +52,7 @@ namespace ClusterSharp.Api.Middleware
 
         private string DetermineTargetHost(string host)
         {
-            if (!proxyRule.Rules.TryGetValue(host, out var endpoints) || endpoints.Count == 0)
+            if (!proxyRuleService.TryGetEndpoints(host, out var endpoints) || endpoints.Count == 0)
                 return string.Empty;
 
             var healthyEndpoints = endpoints
@@ -64,7 +64,6 @@ namespace ClusterSharp.Api.Middleware
             
             logger.LogWarning("All endpoints for host {Host} have open circuit breakers", host);
             return string.Empty;
-
         }
 
         private async Task ProxyRequest(HttpContext context, string targetUri)

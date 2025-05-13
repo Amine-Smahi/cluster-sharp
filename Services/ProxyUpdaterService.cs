@@ -4,7 +4,7 @@ namespace ClusterSharp.Api.Services
 {
     public class ProxyUpdaterService(
         ClusterOverviewService clusterOverviewService,
-        ProxyRule proxyRule,
+        IProxyRuleService proxyRuleService,
         ILogger<ProxyUpdaterService> logger)
     {
         private Dictionary<string, List<string>> _lastRuleSnapshot = new();
@@ -46,11 +46,7 @@ namespace ClusterSharp.Api.Services
                 
                 if (hasChanges)
                 {
-                    proxyRule.Rules.Clear();
-                    foreach (var (key, endpoints) in newRules)
-                    {
-                        proxyRule.Rules[key] = endpoints;
-                    }
+                    proxyRuleService.SetRules(newRules);
                     _lastRuleSnapshot = new Dictionary<string, List<string>>(newRules);
                     logger.LogInformation("Proxy rules updated");
                 }

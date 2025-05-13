@@ -5,7 +5,7 @@ using FastEndpoints;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class DashboardEndpoint(ClusterOverviewService overviewService, ProxyRule proxyRule) : EndpointWithoutRequest
+public class DashboardEndpoint(ClusterOverviewService overviewService, IProxyRuleService proxyRuleService) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -202,8 +202,8 @@ public class DashboardEndpoint(ClusterOverviewService overviewService, ProxyRule
             <div class='col-12 mb-3'>
                 <h2>Proxy Rules</h2>
             </div>
-            {(proxyRule.Rules.Count > 0 
-                ? string.Join("", proxyRule.Rules.Select(rule => $@"
+            {(proxyRuleService.Rules.Count > 0 
+                ? string.Join("", proxyRuleService.Rules.Select(rule => $@"
                 <div class='col-xl-4 col-lg-6 col-md-6 col-sm-12 mb-3'>
                     <div class='card bg-dark-subtle shadow-sm proxy-card'>
                         <div class='card-body'>

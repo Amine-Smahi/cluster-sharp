@@ -11,7 +11,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
 builder.Services.AddSingleton<ClusterSetupService>();
-builder.Services.AddSingleton<ProxyRule>();
+builder.Services.AddSingleton<IProxyRuleService, ProxyRuleService>();
 builder.Services.AddSingleton<ProxyUpdaterService>();
 builder.Services.AddSingleton<ICircuitBreakerService, CircuitBreakerService>();
 builder.Services.AddSingleton<ILoadBalancerService, RoundRobinLoadBalancerService>();
