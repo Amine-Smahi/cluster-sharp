@@ -3,6 +3,8 @@ using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
 using System.Net;
+using System.Net.Sockets;
+using System.IO;
 using Polly;
 using Polly.Extensions.Http;
 
@@ -25,19 +27,25 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         AllowAutoRedirect = false,
         UseCookies = false,
         UseProxy = false,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
-        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(60),
-        ConnectTimeout = TimeSpan.FromSeconds(30),
-        MaxConnectionsPerServer = 1000,
+        KeepAlivePingDelay = TimeSpan.FromSeconds(15),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+        ConnectTimeout = TimeSpan.FromSeconds(20),
+        MaxConnectionsPerServer = 1500,
         EnableMultipleHttp2Connections = true,
-        MaxResponseDrainSize = 1024 * 1024 * 1, // 1MB
-        ResponseDrainTimeout = TimeSpan.FromSeconds(2)
+        MaxResponseDrainSize = 1024 * 1024 * 2,
+        ResponseDrainTimeout = TimeSpan.FromSeconds(5),
+        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+        {
+            RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true,
+            EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+        }
     })
     .ConfigureHttpClient(client => {
-        client.Timeout = TimeSpan.FromMinutes(10);
-        client.DefaultRequestVersion = HttpVersion.Version20;
+        client.Timeout = TimeSpan.FromMinutes(3);
+        client.DefaultRequestVersion = HttpVersion.Version11;
+        client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .AddPolicyHandler(Policy<HttpResponseMessage>
         .Handle<TaskCanceledException>()
@@ -52,14 +60,32 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         .OrResult(msg => msg.StatusCode == HttpStatusCode.ServiceUnavailable)
         .OrResult(msg => msg.StatusCode == HttpStatusCode.GatewayTimeout)
         .Or<TimeoutException>()
-        .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
+        .Or<SocketException>()
+        .Or<IOException>()
+        .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
             onRetry: (outcome, timespan, retryAttempt, context) =>
             {
                 string errorDetails = outcome.Exception?.Message ?? 
                                    (outcome.Result != null ? $"Status code: {(int)outcome.Result.StatusCode} ({outcome.Result.StatusCode})" : "Unknown error");
                 
                 Console.WriteLine($"Request failed: {errorDetails}. Retry attempt {retryAttempt}. Waiting {timespan.TotalSeconds} seconds");
-            }));
+            }))
+    .AddPolicyHandler(HttpPolicyExtensions
+        .HandleTransientHttpError()
+        .OrResult(msg => (int)msg.StatusCode >= 500)
+        .Or<TimeoutException>()
+        .Or<SocketException>()
+        .CircuitBreakerAsync(
+            handledEventsAllowedBeforeBreaking: 5,
+            durationOfBreak: TimeSpan.FromSeconds(30),
+            onBreak: (outcome, breakDelay) =>
+            {
+                string reason = outcome.Exception?.Message ?? $"Status code: {(int?)outcome.Result?.StatusCode}";
+                Console.WriteLine($"Circuit breaker opened for {breakDelay.TotalSeconds} seconds due to: {reason}");
+            },
+            onReset: () => Console.WriteLine("Circuit breaker reset - normal operation resumed"),
+            onHalfOpen: () => Console.WriteLine("Circuit breaker half-open - testing if service is healthy")
+        ));
 
 // Configure Kestrel for high loads
 builder.WebHost.ConfigureKestrel(serverOptions =>

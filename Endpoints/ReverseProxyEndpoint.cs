@@ -110,7 +110,23 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 if (ex is TaskCanceledException && ct.IsCancellationRequested)
                     return;
                 
-                Console.WriteLine($"Proxy error: {ex.Message}");
+                // Add specific handling for network-related exceptions
+                if (ex is HttpRequestException httpEx)
+                {
+                    Console.WriteLine($"Proxy HTTP request error to {targetUrl}: {httpEx.Message}, Status: {httpEx.StatusCode}, Inner: {httpEx.InnerException?.Message}");
+                    await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
+                    return;
+                }
+                
+                // Add specific handling for socket exceptions
+                if (ex.InnerException is System.Net.Sockets.SocketException socketEx)
+                {
+                    Console.WriteLine($"Proxy socket error to {targetUrl}: {socketEx.Message}, Error code: {socketEx.ErrorCode}, SocketErrorCode: {socketEx.SocketErrorCode}");
+                    await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
+                    return;
+                }
+                
+                Console.WriteLine($"Proxy error: {ex.Message}, Type: {ex.GetType().Name}, Inner: {ex.InnerException?.Message}");
                 await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
             }
         }
@@ -119,7 +135,12 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             if (ex is TaskCanceledException && ct.IsCancellationRequested)
                 return;
             
-            Console.WriteLine($"Global proxy error: {ex.Message}");
+            // Add better diagnostics for the global error case
+            var errorDetails = ex.InnerException != null 
+                ? $"{ex.Message} -> {ex.InnerException.Message} ({ex.InnerException.GetType().Name})"
+                : ex.Message;
+            
+            Console.WriteLine($"Global proxy error: {errorDetails}, Type: {ex.GetType().Name}, Stack: {ex.StackTrace?.Split('\n')[0]}");
             await SendAsync("Internal Server Error", StatusCodes.Status500InternalServerError, cancellation: ct);
         }
     }
