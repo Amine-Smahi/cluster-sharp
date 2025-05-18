@@ -66,15 +66,41 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             
             var client = httpClientFactory.CreateClient("ReverseProxyClient");
             
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(180)); // Increased timeout
+            // Track if cancellation has occurred
+            bool isCancellationRequested = false;
+            
+            // Create a token source with a longer timeout and monitor the request
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
+            
+            // Create a linked token that will cancel if either the original token or our timeout token cancels
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
+            
+            // Register a callback to identify if the original request token was cancelled
+            using var clientDisconnectReg = ct.Register(() => {
+                isCancellationRequested = true;
+                Console.WriteLine($"Original client request cancelled for {targetUrl}");
+            });
             
             try
             {
+                // Monitor for pending cancellation
+                if (linkedCts.Token.IsCancellationRequested)
+                {
+                    Console.WriteLine($"Request already cancelled before sending for {targetUrl}");
+                    return;
+                }
+                
                 var response = await client.SendAsync(
                     requestMessage, 
                     HttpCompletionOption.ResponseHeadersRead,
                     linkedCts.Token);
+                
+                // Check if client disconnected during the request
+                if (isCancellationRequested || ct.IsCancellationRequested)
+                {
+                    Console.WriteLine($"Client disconnected after receiving response headers for {targetUrl}");
+                    return;
+                }
                 
                 HttpContext.Response.StatusCode = (int)response.StatusCode;
                 
@@ -88,60 +114,29 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 // Stream the response directly instead of loading it into memory
                 await response.Content.CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
             }
-            catch (TaskCanceledException ex)
+            catch (Exception ex) when (ex is OperationCanceledException || ex is TaskCanceledException)
             {
-                if (cts.Token.IsCancellationRequested) 
-                {
-                    Console.WriteLine($"Proxy request timed out: {targetUrl}");
-                    await SendAsync("Gateway Timeout", StatusCodes.Status504GatewayTimeout, cancellation: ct);
-                }
-                else if (ct.IsCancellationRequested)
-                {
-                    // Request canceled by client
-                }
-                else
-                {
-                    Console.WriteLine($"Proxy request canceled: {ex.Message}");
-                    await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
-                }
+                // Client cancelled or timeout - just return OK
+                await SendOkAsync(cancellation: CancellationToken.None);
             }
             catch (Exception ex)
             {
-                if (ex is TaskCanceledException && ct.IsCancellationRequested)
-                    return;
-                
-                // Add specific handling for network-related exceptions
-                if (ex is HttpRequestException httpEx)
-                {
-                    Console.WriteLine($"Proxy HTTP request error to {targetUrl}: {httpEx.Message}, Status: {httpEx.StatusCode}, Inner: {httpEx.InnerException?.Message}");
-                    await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
-                    return;
-                }
-                
-                // Add specific handling for socket exceptions
-                if (ex.InnerException is System.Net.Sockets.SocketException socketEx)
-                {
-                    Console.WriteLine($"Proxy socket error to {targetUrl}: {socketEx.Message}, Error code: {socketEx.ErrorCode}, SocketErrorCode: {socketEx.SocketErrorCode}");
-                    await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
-                    return;
-                }
-                
-                Console.WriteLine($"Proxy error: {ex.Message}, Type: {ex.GetType().Name}, Inner: {ex.InnerException?.Message}");
-                await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
+                Console.WriteLine($"Non-cancellation error: {ex.Message}");
+                await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: CancellationToken.None);
             }
         }
         catch (Exception ex)
         {
-            if (ex is TaskCanceledException && ct.IsCancellationRequested)
+            if (ex is OperationCanceledException || ex is TaskCanceledException)
+            {
+                // Global cancellation - just return OK
+                await SendOkAsync(cancellation: CancellationToken.None);
                 return;
+            }
             
-            // Add better diagnostics for the global error case
-            var errorDetails = ex.InnerException != null 
-                ? $"{ex.Message} -> {ex.InnerException.Message} ({ex.InnerException.GetType().Name})"
-                : ex.Message;
-            
-            Console.WriteLine($"Global proxy error: {errorDetails}, Type: {ex.GetType().Name}, Stack: {ex.StackTrace?.Split('\n')[0]}");
-            await SendAsync("Internal Server Error", StatusCodes.Status500InternalServerError, cancellation: ct);
+            // Add better diagnostics for other error cases
+            Console.WriteLine($"Global proxy error: {ex.Message}");
+            await SendAsync("Internal Server Error", StatusCodes.Status500InternalServerError, cancellation: CancellationToken.None);
         }
     }
 }
