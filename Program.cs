@@ -25,15 +25,19 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         AllowAutoRedirect = false,
         UseCookies = false,
         UseProxy = false,
-        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
-        KeepAlivePingDelay = TimeSpan.FromSeconds(5),
+        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
         KeepAlivePingTimeout = TimeSpan.FromSeconds(60),
         ConnectTimeout = TimeSpan.FromSeconds(30),
-        MaxConnectionsPerServer = 100
+        MaxConnectionsPerServer = 1000,
+        EnableMultipleHttp2Connections = true,
+        MaxResponseDrainSize = 1024 * 1024 * 1, // 1MB
+        ResponseDrainTimeout = TimeSpan.FromSeconds(2)
     })
     .ConfigureHttpClient(client => {
-        client.Timeout = TimeSpan.FromMinutes(5);
+        client.Timeout = TimeSpan.FromMinutes(10);
+        client.DefaultRequestVersion = HttpVersion.Version20;
     })
     .AddPolicyHandler(Policy<HttpResponseMessage>
         .Handle<TaskCanceledException>()
@@ -63,8 +67,10 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
     serverOptions.Limits.MaxConcurrentConnections = 100000;
     serverOptions.Limits.MaxConcurrentUpgradedConnections = 100000;
     serverOptions.Limits.MaxRequestBodySize = 30 * 1024 * 1024; // 30MB
-    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
-    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(10);
+    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(2);
+    serverOptions.Limits.MinRequestBodyDataRate = null; // Disable data rate limiting
+    serverOptions.AllowSynchronousIO = false;
 });
 
 var app = builder.Build();

@@ -66,7 +66,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             
             var client = httpClientFactory.CreateClient("ReverseProxyClient");
             
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(50)); // Set a timeout
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(180)); // Increased timeout
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             
             try
@@ -85,8 +85,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 foreach (var header in response.Content.Headers) 
                     HttpContext.Response.Headers[header.Key] = header.Value.ToArray();
                 
-                await new MemoryStream(System.Text.Encoding.UTF8.GetBytes(await response.Content.ReadAsStringAsync(linkedCts.Token)))
-                    .CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
+                // Stream the response directly instead of loading it into memory
+                await response.Content.CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
             }
             catch (TaskCanceledException ex)
             {
@@ -97,6 +97,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 }
                 else if (ct.IsCancellationRequested)
                 {
+                    // Request canceled by client
                 }
                 else
                 {
