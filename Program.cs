@@ -46,7 +46,10 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
             onRetry: (outcome, timespan, retryAttempt, context) =>
             {
-                Console.WriteLine($"Request failed. Retry attempt {retryAttempt}. Waiting {timespan.TotalSeconds} seconds.");
+                string errorDetails = outcome.Exception?.Message ?? 
+                                      (outcome.Result != null ? $"Status code: {(int)outcome.Result.StatusCode} ({outcome.Result.StatusCode})" : "Unknown error");
+                
+                Console.WriteLine($"Request failed: {errorDetails}. Retry attempt {retryAttempt}. Waiting {timespan.TotalSeconds} seconds");
             }));
 
 // Configure Kestrel for high loads

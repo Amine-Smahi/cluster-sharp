@@ -97,8 +97,6 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 }
                 else if (ct.IsCancellationRequested)
                 {
-                    // Client cancelled - silently ignore without logging
-                    return;
                 }
                 else
                 {
@@ -108,11 +106,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             }
             catch (Exception ex)
             {
-                // Silently ignore client cancellations without logging
                 if (ex is TaskCanceledException && ct.IsCancellationRequested)
-                {
                     return;
-                }
                 
                 Console.WriteLine($"Proxy error: {ex.Message}");
                 await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: ct);
@@ -120,11 +115,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         }
         catch (Exception ex)
         {
-            // Silently ignore client cancellations without logging
             if (ex is TaskCanceledException && ct.IsCancellationRequested)
-            {
                 return;
-            }
             
             Console.WriteLine($"Global proxy error: {ex.Message}");
             await SendAsync("Internal Server Error", StatusCodes.Status500InternalServerError, cancellation: ct);
