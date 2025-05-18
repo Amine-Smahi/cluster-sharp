@@ -40,6 +40,16 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
         .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
+// Configure Kestrel for high loads
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxConcurrentConnections = 100000;
+    serverOptions.Limits.MaxConcurrentUpgradedConnections = 100000;
+    serverOptions.Limits.MaxRequestBodySize = 30 * 1024 * 1024; // 30MB
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+});
+
 var app = builder.Build();
 
 ClusterHelper.Initialize(app.Services);

@@ -3,11 +3,13 @@ using ClusterSharp.Api.Services;
 using Microsoft.AspNetCore.Http.Extensions;
 using System.Net.Http;
 using System.IO;
+using System.Net;
 
 namespace ClusterSharp.Api.Endpoints;
 
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory) : Endpoint<ReverseProxyRequest>
 {
+    private static readonly Random Random = new();
     public override void Configure()
     {
         AllowAnonymous();
@@ -20,24 +22,14 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
     {
         try
         {
-            var overview = overviewService.Overview;
-            if (overview.Containers.Count == 0)
+            var container = overviewService.Overview.GetContainerForDomain(HttpContext.Request.Host.Value);
+            if (container == null)
             {
                 await SendNotFoundAsync(ct);
                 return;
             }
             
-            var random = new Random();
-            var containerIndex = random.Next(0, overview.Containers.Count);
-            var container = overview.Containers[containerIndex];
-            
-            if (container.ContainerOnHostStatsList.Count == 0)
-            {
-                await SendAsync("Service Unavailable", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
-                return;
-            }
-            
-            var hostIndex = random.Next(0, container.ContainerOnHostStatsList.Count);
+            var hostIndex = Random.Next(0, container.ContainerOnHostStatsList.Count);
             var host = container.ContainerOnHostStatsList[hostIndex].Host;
             var port = container.ExternalPort;
             
@@ -51,7 +43,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             var uri = new Uri(originalUrl);
             
             var targetUrl = $"http://{host}:{port}{uri.PathAndQuery}";
-            Console.WriteLine($"Proxying request to: {targetUrl}");
+            //Console.WriteLine($"Proxying request to: {targetUrl}");
             
             var requestMessage = new HttpRequestMessage
             {
@@ -85,14 +77,16 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                     linkedCts.Token);
                 
                 HttpContext.Response.StatusCode = (int)response.StatusCode;
+                
                 foreach (var header in response.Headers)
                     if (!header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) 
                         HttpContext.Response.Headers[header.Key] = header.Value.ToArray();
 
                 foreach (var header in response.Content.Headers) 
                     HttpContext.Response.Headers[header.Key] = header.Value.ToArray();
-                        
-                await response.Content.CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
+                
+                await new MemoryStream(System.Text.Encoding.UTF8.GetBytes(await response.Content.ReadAsStringAsync(linkedCts.Token)))
+                    .CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
             }
             catch (TaskCanceledException ex)
             {
