@@ -34,7 +34,7 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
         EnableMultipleHttp2Connections = true,
-        MaxConnectionsPerServer = 1000
+        MaxConnectionsPerServer = 10000
     });
 
 var app = builder.Build();
