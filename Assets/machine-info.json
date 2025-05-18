@@ -3,9 +3,9 @@
     "hostname": "control-plane",
     "role": null,
     "MachineStats": {
-      "Cpu": 2.3,
-      "Memory": 5.4,
-      "Disk": 8
+      "Cpu": 0,
+      "Memory": 14.2,
+      "Disk": 9
     },
     "Containers": []
   },
@@ -13,9 +13,19 @@
     "hostname": "node1",
     "role": null,
     "MachineStats": {
-      "Cpu": 4.7,
-      "Memory": 9.8,
+      "Cpu": 11.6,
+      "Memory": 10.3,
       "Disk": 9
+    },
+    "Containers": []
+  },
+  {
+    "hostname": "node2",
+    "role": null,
+    "MachineStats": {
+      "Cpu": 16.3,
+      "Memory": 5.7,
+      "Disk": 5
     },
     "Containers": []
   }

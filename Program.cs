@@ -16,6 +16,8 @@ builder.Services.AddHostedService<UpdateBackgroundService>();
 
 builder.Services.AddFastEndpoints(options => options.SourceGeneratorDiscoveredTypes = []);
 
+builder.Services.AddHttpClient("ReverseProxyClient");
+
 var app = builder.Build();
 
 ClusterHelper.Initialize(app.Services);
