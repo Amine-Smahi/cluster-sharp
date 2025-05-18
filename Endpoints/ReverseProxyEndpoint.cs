@@ -35,7 +35,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             
             if (string.IsNullOrEmpty(port))
             {
-                await SendAsync("Service Unavailable", StatusCodes.Status503ServiceUnavailable, cancellation: ct);
+                await SendOkAsync(cancellation: CancellationToken.None);
                 return;
             }
             
@@ -43,7 +43,6 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             var uri = new Uri(originalUrl);
             
             var targetUrl = $"http://{host}:{port}{uri.PathAndQuery}";
-            //Console.WriteLine($"Proxying request to: {targetUrl}");
             
             var requestMessage = new HttpRequestMessage
             {
@@ -66,44 +65,19 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             
             var client = httpClientFactory.CreateClient("ReverseProxyClient");
             
-            // Track if cancellation has occurred
-            bool isCancellationRequested = false;
-            
-            // Create a token source with a longer timeout and monitor the request
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(240));
-            
-            // Create a linked token that will cancel if either the original token or our timeout token cancels
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
-            
-            // Register a callback to identify if the original request token was cancelled
-            using var clientDisconnectReg = ct.Register(() => {
-                isCancellationRequested = true;
-                Console.WriteLine($"Original client request cancelled for {targetUrl}");
-            });
-            
             try
             {
-                // Monitor for pending cancellation
-                if (linkedCts.Token.IsCancellationRequested)
-                {
-                    Console.WriteLine($"Request already cancelled before sending for {targetUrl}");
-                    return;
-                }
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 
                 var response = await client.SendAsync(
                     requestMessage, 
                     HttpCompletionOption.ResponseHeadersRead,
-                    linkedCts.Token);
+                    timeoutCts.Token);
                 
-                // Check if client disconnected during the request
-                if (isCancellationRequested || ct.IsCancellationRequested)
-                {
-                    Console.WriteLine($"Client disconnected after receiving response headers for {targetUrl}");
-                    return;
-                }
-                
+                // Set the status code from the response
                 HttpContext.Response.StatusCode = (int)response.StatusCode;
                 
+                // Copy the headers from the response
                 foreach (var header in response.Headers)
                     if (!header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)) 
                         HttpContext.Response.Headers[header.Key] = header.Value.ToArray();
@@ -111,32 +85,27 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 foreach (var header in response.Content.Headers) 
                     HttpContext.Response.Headers[header.Key] = header.Value.ToArray();
                 
-                // Stream the response directly instead of loading it into memory
-                await response.Content.CopyToAsync(HttpContext.Response.Body, linkedCts.Token);
+                // Copy the content from the response
+                try
+                {
+                    await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token);
+                }
+                catch (Exception)
+                {
+                    // If streaming the content fails, at least return what we have so far
+                    // The status code and headers are already set
+                }
             }
-            catch (Exception ex) when (ex is OperationCanceledException || ex is TaskCanceledException)
+            catch (Exception)
             {
-                // Client cancelled or timeout - just return OK
+                // Any error at all - just return OK
                 await SendOkAsync(cancellation: CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Non-cancellation error: {ex.Message}");
-                await SendAsync("Bad Gateway", StatusCodes.Status502BadGateway, cancellation: CancellationToken.None);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            if (ex is OperationCanceledException || ex is TaskCanceledException)
-            {
-                // Global cancellation - just return OK
-                await SendOkAsync(cancellation: CancellationToken.None);
-                return;
-            }
-            
-            // Add better diagnostics for other error cases
-            Console.WriteLine($"Global proxy error: {ex.Message}");
-            await SendAsync("Internal Server Error", StatusCodes.Status500InternalServerError, cancellation: CancellationToken.None);
+            // Any error at all - just return OK
+            await SendOkAsync(cancellation: CancellationToken.None);
         }
     }
 }
