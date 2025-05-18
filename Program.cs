@@ -2,6 +2,7 @@ using ClusterSharp.Api.BackgroundServices;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
+using ClusterSharp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,10 @@ var app = builder.Build();
 ClusterHelper.Initialize(app.Services);
 
 app.Lifetime.ApplicationStopping.Register(SshHelper.CloseAllConnections);
+
+// Add the connection issues middleware early in the pipeline
+app.UseConnectionIssuesHandling();
+
 app.UseRouting();
 
 app.UseReverseProxy();
