@@ -33,12 +33,21 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         MaxConnectionsPerServer = 100
     })
     .ConfigureHttpClient(client => {
-        client.Timeout = TimeSpan.FromMinutes(2);
+        client.Timeout = TimeSpan.FromMinutes(5);
     })
     .AddPolicyHandler(HttpPolicyExtensions
         .HandleTransientHttpError()
         .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
-        .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+        .OrResult(msg => msg.StatusCode == HttpStatusCode.ServiceUnavailable)
+        .OrResult(msg => msg.StatusCode == HttpStatusCode.GatewayTimeout)
+        .Or<OperationCanceledException>()
+        .Or<TimeoutException>()
+        .Or<TaskCanceledException>()
+        .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
+            onRetry: (outcome, timespan, retryAttempt, context) =>
+            {
+                Console.WriteLine($"Request failed. Retry attempt {retryAttempt}. Waiting {timespan.TotalSeconds} seconds.");
+            }));
 
 // Configure Kestrel for high loads
 builder.WebHost.ConfigureKestrel(serverOptions =>
