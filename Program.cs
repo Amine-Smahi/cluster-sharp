@@ -35,6 +35,9 @@ builder.Services.AddHttpClient("ReverseProxyClient")
     .ConfigureHttpClient(client => {
         client.Timeout = TimeSpan.FromMinutes(5);
     })
+    .AddPolicyHandler(Policy<HttpResponseMessage>
+        .Handle<TaskCanceledException>()
+        .FallbackAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("OK") }))
     .AddPolicyHandler(HttpPolicyExtensions
         .HandleTransientHttpError()
         .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
@@ -42,7 +45,6 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         .OrResult(msg => msg.StatusCode == HttpStatusCode.GatewayTimeout)
         .Or<OperationCanceledException>()
         .Or<TimeoutException>()
-        .Or<TaskCanceledException>()
         .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
             onRetry: (outcome, timespan, retryAttempt, context) =>
             {
