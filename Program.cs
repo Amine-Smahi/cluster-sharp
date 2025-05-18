@@ -73,4 +73,4 @@ app.MapOpenApi();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.Run();
+app.Run("http://0.0.0.0:80");
