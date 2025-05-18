@@ -37,19 +37,22 @@ builder.Services.AddHttpClient("ReverseProxyClient")
     })
     .AddPolicyHandler(Policy<HttpResponseMessage>
         .Handle<TaskCanceledException>()
+        .Or<OperationCanceledException>()
+        .OrInner<TaskCanceledException>()
+        .OrInner<OperationCanceledException>()
+        .OrResult(r => r.ReasonPhrase?.Contains("cancel", StringComparison.OrdinalIgnoreCase) == true)
         .FallbackAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("OK") }))
     .AddPolicyHandler(HttpPolicyExtensions
         .HandleTransientHttpError()
         .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
         .OrResult(msg => msg.StatusCode == HttpStatusCode.ServiceUnavailable)
         .OrResult(msg => msg.StatusCode == HttpStatusCode.GatewayTimeout)
-        .Or<OperationCanceledException>()
         .Or<TimeoutException>()
         .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(1.5, retryAttempt)),
             onRetry: (outcome, timespan, retryAttempt, context) =>
             {
                 string errorDetails = outcome.Exception?.Message ?? 
-                                      (outcome.Result != null ? $"Status code: {(int)outcome.Result.StatusCode} ({outcome.Result.StatusCode})" : "Unknown error");
+                                   (outcome.Result != null ? $"Status code: {(int)outcome.Result.StatusCode} ({outcome.Result.StatusCode})" : "Unknown error");
                 
                 Console.WriteLine($"Request failed: {errorDetails}. Retry attempt {retryAttempt}. Waiting {timespan.TotalSeconds} seconds");
             }));
