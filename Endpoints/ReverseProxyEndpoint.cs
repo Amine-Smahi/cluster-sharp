@@ -12,6 +12,8 @@ public record ReverseProxyRequest
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
     : Endpoint<ReverseProxyRequest>
 {
+    private static readonly Random Random = new();
+
     public override void Configure()
     {
         AllowAnonymous();
@@ -30,8 +32,9 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 await SendNotFoundAsync(ct);
                 return;
             }
-            
-            var host = container.ContainerOnHostStatsList[0].Host;
+
+            var hostIndex = Random.Next(0, container.ContainerOnHostStatsList.Count);
+            var host = container.ContainerOnHostStatsList[hostIndex].Host;
             var port = container.ExternalPort;
 
             if (string.IsNullOrEmpty(port))
