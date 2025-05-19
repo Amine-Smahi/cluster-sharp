@@ -12,8 +12,8 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
     options.AllowSynchronousIO = false;
     options.AddServerHeader = false;
-    options.Limits.MaxConcurrentConnections = 10000;
-    options.Limits.MaxConcurrentUpgradedConnections = 10000;
+    options.Limits.MaxConcurrentConnections = 100000;
+    options.Limits.MaxConcurrentUpgradedConnections = 100000;
 });
 
 builder.Services.AddOpenApi();
@@ -34,7 +34,7 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
         EnableMultipleHttp2Connections = true,
-        MaxConnectionsPerServer = 10000
+        MaxConnectionsPerServer = 100000
     });
 
 var app = builder.Build();
