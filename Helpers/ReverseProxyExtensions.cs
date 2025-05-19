@@ -1,5 +1,4 @@
 using FastEndpoints;
-using Microsoft.AspNetCore.Builder;
 
 namespace ClusterSharp.Api.Helpers;
 

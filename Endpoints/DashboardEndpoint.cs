@@ -1,5 +1,4 @@
 using System.Globalization;
-using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
 

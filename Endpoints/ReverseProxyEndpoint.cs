@@ -1,17 +1,17 @@
 using FastEndpoints;
 using ClusterSharp.Api.Services;
 using Microsoft.AspNetCore.Http.Extensions;
-using System.Net.Http;
-using System.IO;
-using System.Net;
 
 namespace ClusterSharp.Api.Endpoints;
+
+public record ReverseProxyRequest
+{
+    public string CatchAll { get; set; } = string.Empty;
+}
 
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
     : Endpoint<ReverseProxyRequest>
 {
-    private static readonly Random Random = new();
-
     public override void Configure()
     {
         AllowAnonymous();
@@ -30,9 +30,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 await SendNotFoundAsync(ct);
                 return;
             }
-
-            var hostIndex = Random.Next(0, container.ContainerOnHostStatsList.Count);
-            var host = container.ContainerOnHostStatsList[hostIndex].Host;
+            
+            var host = container.ContainerOnHostStatsList[0].Host;
             var port = container.ExternalPort;
 
             if (string.IsNullOrEmpty(port))
@@ -66,9 +65,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             }
 
             var client = httpClientFactory.CreateClient("ReverseProxyClient");
-
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
             
             HttpContext.Response.StatusCode = (int)response.StatusCode;
@@ -87,9 +84,4 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             await SendOkAsync(cancellation: CancellationToken.None);
         }
     }
-}
-
-public class ReverseProxyRequest
-{
-    public string CatchAll { get; set; } = string.Empty;
 }

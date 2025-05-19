@@ -56,6 +56,8 @@ public class ClusterOverviewService
                     };
                     container.ContainerOnHostStatsList = containerInfo
                         .Where(y => y.Containers.Any(c => c.Name == container.Name))
+                        .OrderBy(y => y.MachineStats.Cpu)
+                        .ThenBy(y => y.MachineStats.Memory)
                         .Select(y => 
                         {
                             var containerStats = y.Containers.First(c => c.Name == container.Name);

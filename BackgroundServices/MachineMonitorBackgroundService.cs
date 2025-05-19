@@ -7,7 +7,7 @@ namespace ClusterSharp.Api.BackgroundServices;
 
 public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverviewService) : BackgroundService
 {
-    private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(10);
     private readonly TimeSpan _errorInterval = TimeSpan.FromSeconds(60);
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     
