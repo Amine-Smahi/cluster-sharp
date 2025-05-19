@@ -161,7 +161,7 @@ internal class HttpRequestMessagePooledObjectPolicy : PooledObjectPolicy<HttpReq
         obj.Content?.Dispose();
         obj.Content = null;
         obj.RequestUri = null;
-        obj.Method = null!;
+        obj.Method = HttpMethod.Get;
         obj.Headers.Clear();
         return true;
     }
