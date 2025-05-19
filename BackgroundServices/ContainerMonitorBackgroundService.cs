@@ -69,7 +69,7 @@ public class ContainerMonitorBackgroundService(
         }
     }
     
-    private async Task<Node?> ProcessNodeAsync(string worker)
+    private static async Task<Node?> ProcessNodeAsync(string worker)
     {
         return await Task.Run(() => {
             var containers = SshHelper.GetDockerContainerStats(worker);

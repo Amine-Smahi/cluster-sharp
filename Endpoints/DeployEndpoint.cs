@@ -46,7 +46,7 @@ public class DeployEndpoint : EndpointWithoutRequest
 
         if (replicas > workers.Count)
         {
-            await SendAsync($"Not enough workers available. {workers.Count} available, {replicas} requested.", 
+            await SendAsync($"Not enough workers available. {workers.Count} available, {replicas} requested.",
                 StatusCodes.Status400BadRequest, ct);
             return;
         }
@@ -54,16 +54,14 @@ public class DeployEndpoint : EndpointWithoutRequest
         workers = workers.Take(replicas).ToList();
 
         var repo = GithubHelper.GetRepoName(HttpContext.Request.Host.Value!);
-        foreach (var worker in workers)
+        foreach (var results in workers
+                     .Select(worker => SshHelper.ExecuteCommands(worker, CommandHelper.GetDeploymentCommands(repo)))
+                     .Where(results => results?.Any(x => x.Status == Constants.NotOk) ?? true))
         {
-            var results = SshHelper.ExecuteCommands(worker, CommandHelper.GetDeploymentCommands(repo));
-            if (results?.Any(x => x.Status == Constants.NotOk) ?? true)
-            {
-                await SendAsync(results, StatusCodes.Status400BadRequest, ct);
-                return;
-            }
+            await SendAsync(results, StatusCodes.Status400BadRequest, ct);
+            return;
         }
 
         await SendOkAsync(ct);
     }
-} 
+}

@@ -67,7 +67,7 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
         }
     }
     
-    private async Task<Node?> ProcessNodeAsync(string worker, string username, string password)
+    private static async Task<Node?> ProcessNodeAsync(string worker, string username, string password)
     {
         return await Task.Run(() => {
             var machineStats = SshHelper.GetMachineStats(worker, username, password);
