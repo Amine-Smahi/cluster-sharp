@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Services;
 using ClusterSharp.Api.Shared;
+using ZLinq;
 
 namespace ClusterSharp.Api.Helpers;
 
@@ -37,7 +38,7 @@ public static class ClusterHelper
             return [];
         }
 
-        return result.Nodes.Where(m => m.Role == Constants.Worker)
+        return result.Nodes.AsValueEnumerable().Where(m => m.Role == Constants.Worker)
             .Select(x => x.Hostname)
             .ToList();
     }

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using ZLinq;
 
 namespace ClusterSharp.Api.Models.Overview;
 
@@ -10,5 +11,5 @@ public class Container
     public List<ContainerOnHostStats> ContainerOnHostStatsList { get; set; } = [];
     
     [JsonIgnore]
-    public List<string> Hosts => ContainerOnHostStatsList.Select(x => x.Host).ToList();
+    public List<string> Hosts => ContainerOnHostStatsList.AsValueEnumerable().Select(x => x.Host).ToList();
 }

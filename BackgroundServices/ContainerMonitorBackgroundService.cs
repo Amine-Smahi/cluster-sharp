@@ -2,6 +2,7 @@ using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Services;
+using ZLinq;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
@@ -32,13 +33,14 @@ public class ContainerMonitorBackgroundService(
                     }
                     
                     var nodeProcessingTasks = cluster.Nodes
+                        .AsValueEnumerable()
                         .Select(x => x.Hostname)
                         .Select(ProcessNodeAsync)
                         .ToList();
                     
                     var processedNodes = await Task.WhenAll(nodeProcessingTasks);
                     
-                    var clusterInfo = processedNodes.Where(node => node != null).ToList();
+                    var clusterInfo = processedNodes.AsValueEnumerable().Where(node => node != null).ToList();
                     
                     if(clusterInfo.Count == 0)
                     {
@@ -80,7 +82,7 @@ public class ContainerMonitorBackgroundService(
             {
                 Hostname = worker,
                 MachineStats = new MachineStats(), 
-                Containers = containers.Select(c => new ContainerStats
+                Containers = containers.AsValueEnumerable().Select(c => new ContainerStats
                 {
                     Name = c.Name,
                     Cpu = c.Cpu,

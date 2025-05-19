@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Models.Overview;
+using ZLinq;
 
 namespace ClusterSharp.Api.Services;
 
@@ -33,7 +34,7 @@ public class ClusterOverviewService
             
         if (machineInfo != null)
         {
-            Overview.Machines = machineInfo.Select(x => new Machine
+            Overview.Machines = machineInfo.AsValueEnumerable().Select(x => new Machine
             {
                 Hostname = x.Hostname,
                 Cpu = x.MachineStats.Cpu,
@@ -43,22 +44,24 @@ public class ClusterOverviewService
         if (containerInfo != null)
         {
             Overview.Containers = containerInfo
+                .AsValueEnumerable()
                 .SelectMany(x => x.Containers)
                 .GroupBy(x => x.Name)
-                .Select(x => x.ToList())
+                .Select(x => x.AsValueEnumerable().ToList())
                 .Select(x =>
                 {
                     var container = new Container
                     {
-                        Name = x.First().Name,
+                        Name = x.AsValueEnumerable().First().Name,
                         Replicas = x.Count,
-                        ExternalPort = x.First().ExternalPort
+                        ExternalPort = x.AsValueEnumerable().First().ExternalPort
                     };
                     container.ContainerOnHostStatsList = containerInfo
-                        .Where(y => y.Containers.Any(c => c.Name == container.Name))
+                        .AsValueEnumerable()
+                        .Where(y => y.Containers.AsValueEnumerable().Any(c => c.Name == container.Name))
                         .Select(y => 
                         {
-                            var containerStats = y.Containers.First(c => c.Name == container.Name);
+                            var containerStats = y.Containers.AsValueEnumerable().First(c => c.Name == container.Name);
                             return new ContainerOnHostStats
                             {
                                 Host = y.Hostname,

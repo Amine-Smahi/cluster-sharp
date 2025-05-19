@@ -1,6 +1,7 @@
 using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Shared;
 using FastEndpoints;
+using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
 
@@ -51,12 +52,14 @@ public class DeployEndpoint : EndpointWithoutRequest
             return;
         }
 
-        workers = workers.Take(replicas).ToList();
+        workers = workers.AsValueEnumerable().Take(replicas).ToList();
 
         var repo = GithubHelper.GetRepoName(HttpContext.Request.Host.Value!);
         foreach (var results in workers
+                     .AsValueEnumerable()
                      .Select(worker => SshHelper.ExecuteCommands(worker, CommandHelper.GetDeploymentCommands(repo)))
-                     .Where(results => results?.Any(x => x.Status == Constants.NotOk) ?? true))
+                     .Where(results => results?.AsValueEnumerable().Any(x => x.Status == Constants.NotOk) ?? true)
+                     .ToArray())
         {
             await SendAsync(results, StatusCodes.Status400BadRequest, ct);
             return;

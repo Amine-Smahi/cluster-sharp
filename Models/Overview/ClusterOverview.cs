@@ -1,3 +1,5 @@
+using ZLinq;
+
 namespace ClusterSharp.Api.Models.Overview;
 
 public class ClusterOverview
@@ -7,5 +9,6 @@ public class ClusterOverview
 
     public Container? GetContainerForDomain(string? domain) =>
         domain == null ? null : Containers
+                .AsValueEnumerable()
                 .FirstOrDefault(c => c.Name.Equals(domain, StringComparison.OrdinalIgnoreCase));
 }

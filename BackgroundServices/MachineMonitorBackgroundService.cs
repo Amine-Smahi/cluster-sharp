@@ -2,6 +2,7 @@ using ClusterSharp.Api.Helpers;
 using ClusterSharp.Api.Models.Cluster;
 using ClusterSharp.Api.Models.Stats;
 using ClusterSharp.Api.Services;
+using ZLinq;
 
 namespace ClusterSharp.Api.BackgroundServices;
 
@@ -30,13 +31,14 @@ public class MachineMonitorBackgroundService(ClusterOverviewService clusterOverv
                     }
                     
                     var nodeProcessingTasks = cluster.Nodes
+                        .AsValueEnumerable()
                         .Select(x => x.Hostname)
                         .Select(x => ProcessNodeAsync(x, cluster.Admin.Username, cluster.Admin.Password))
                         .ToList();
                     
                     var processedNodes = await Task.WhenAll(nodeProcessingTasks);
                     
-                    var clusterInfo = processedNodes.Where(node => node != null).ToList();
+                    var clusterInfo = processedNodes.AsValueEnumerable().Where(node => node != null).ToList();
                     if(clusterInfo.Count == 0)
                     {
                         Console.WriteLine("No machine stats retrieved.");

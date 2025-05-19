@@ -1,3 +1,5 @@
+using ZLinq;
+
 namespace ClusterSharp.Api.Helpers;
 
 public static class CommandHelper
@@ -26,7 +28,8 @@ public static class CommandHelper
             return result;
 
         result = result
-            .Select(line => @override.Aggregate(line, (current, pair) => current.Replace(pair.Key, pair.Value)))
+            .AsValueEnumerable()
+            .Select(line => @override.AsValueEnumerable().Aggregate(line, (current, pair) => current.Replace(pair.Key, pair.Value)))
             .ToList();
 
         return result;

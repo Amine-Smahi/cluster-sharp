@@ -1,6 +1,7 @@
 using System.Globalization;
 using ClusterSharp.Api.Services;
 using FastEndpoints;
+using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
 
@@ -28,10 +29,10 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
 
         var currentTime = DateTime.Now.ToString("HH:mm:ss");
 
-        if (overview?.Machines != null && overview.Machines.Any())
+        if (overview?.Machines != null && overview.Machines.AsValueEnumerable().Any())
         {
-            var avgCpu = (int)overview.Machines.Average(m => m.Cpu);
-            var avgMemory = (int)overview.Machines.Average(m => m.Memory);
+            var avgCpu = (int)overview.Machines.AsValueEnumerable().Average(m => m.Cpu);
+            var avgMemory = (int)overview.Machines.AsValueEnumerable().Average(m => m.Memory);
             
             cpuDataPoints = $"[{avgCpu.ToString(CultureInfo.InvariantCulture)}]";
             memoryDataPoints = $"[{avgMemory.ToString(CultureInfo.InvariantCulture)}]";
@@ -132,7 +133,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
             <div class='col-12 mb-3'>
                 <h2>Machines</h2>
             </div>
-            {(overview?.Machines != null ? string.Join("", overview.Machines.Select(machine => $@"
+            {(overview?.Machines != null ? string.Join("", overview.Machines.AsValueEnumerable().Select(machine => $@"
             <div class='col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3'>
                 <div class='card bg-dark-subtle shadow-sm machine-card'>
                     <div class='card-body'>
@@ -153,14 +154,14 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                         </div>
                     </div>
                 </div>
-            </div>")) : "<div class='col-12'><div class='alert alert-warning'>No machine data available</div></div>")}
+            </div>").ToArray()) : "<div class='col-12'><div class='alert alert-warning'>No machine data available</div></div>")}
         </div>
         
         <div class='row mb-3'>
             <div class='col-12 mb-3'>
                 <h2>Containers</h2>
             </div>
-            {(overview?.Containers != null ? string.Join("", overview.Containers.Select(container => $@"
+            {(overview?.Containers != null ? string.Join("", overview.Containers.AsValueEnumerable().Select(container => $@"
             <div class='col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-3'>
                 <div class='card bg-dark-subtle shadow-sm container-card'>
                     <div class='card-body'>
@@ -170,7 +171,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                             {(string.IsNullOrEmpty(container.ExternalPort) ? "" : $"<span class='badge bg-success'>Port: {container.ExternalPort}</span>")}
                         </div>
                         <p class='card-text mb-1'>Hosts:</p>
-                            {string.Join("", container.Hosts.Select(host => $"<span class=\"badge rounded-pill text-bg-secondary me-2\">{host}</span>"))}
+                            {string.Join("", container.Hosts.AsValueEnumerable().Select(host => $"<span class=\"badge rounded-pill text-bg-secondary me-2\">{host}</span>").ToArray())}
                         <!-- Per-host container stats table -->
                         {(container.ContainerOnHostStatsList.Count > 0 ? $@"
                         <div class='mt-3'>
@@ -183,18 +184,18 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {string.Join("", container.ContainerOnHostStatsList.Select(stats => $@"
+                                    {string.Join("", container.ContainerOnHostStatsList.AsValueEnumerable().Select(stats => $@"
                                         <tr>
                                             <td>{stats.Host}</td>
                                             <td><progress class='bg-{GetColorClass(stats.Cpu)}' value='{stats.Cpu.ToString(CultureInfo.InvariantCulture)}' max='100'></progress> {stats.Cpu.ToString(CultureInfo.InvariantCulture)}%</td>
                                             <td><progress class='bg-{GetColorClass(stats.Memory)}' value='{stats.Memory.ToString(CultureInfo.InvariantCulture)}' max='100'></progress> {stats.Memory.ToString(CultureInfo.InvariantCulture)}%</td>
-                                        </tr>"))}
+                                        </tr>").ToArray())}
                                 </tbody>
                             </table>
                         </div>" : "")}
                     </div>
                 </div>
-            </div>")) : "<div class='col-12'><div class='alert alert-warning'>No container data available</div></div>")}
+            </div>").ToArray()) : "<div class='col-12'><div class='alert alert-warning'>No container data available</div></div>")}
         </div>
     </div>
 

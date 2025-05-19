@@ -1,19 +1,14 @@
 using FastEndpoints;
 using ClusterSharp.Api.Services;
 using Microsoft.AspNetCore.Http.Extensions;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.ObjectPool;
+using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
 
 public record struct ReverseProxyRequest
 {
-    public ReverseProxyRequest()
-    {
-        CatchAll = string.Empty;
-    }
-    
     public string CatchAll { get; set; }
 }
 
@@ -145,7 +140,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             if (header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
                 continue;
             
-            var values = header.Value.ToArray();
+            var values = header.Value.AsValueEnumerable().ToArray();
             destination[header.Key] = values.Length == 1 ? values[0] : values;
         }
     }
