@@ -81,7 +81,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         }
         catch (Exception ex)
         {
-            await SendOkAsync(ex.Message, cancellation: ct);
+            HttpContext.Response.StatusCode = StatusCodes.Status200OK;
+            await HttpContext.Response.WriteAsync(ex.Message, ct);
         }
         finally
         {
