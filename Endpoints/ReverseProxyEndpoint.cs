@@ -2,7 +2,6 @@ using FastEndpoints;
 using ClusterSharp.Api.Services;
 using Microsoft.AspNetCore.Http.Extensions;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.ObjectPool;
 using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
@@ -16,7 +15,6 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
     : Endpoint<ReverseProxyRequest>
 {
     private static readonly Random Random = new();
-    private static readonly ObjectPool<HttpRequestMessage> RequestPool = new DefaultObjectPool<HttpRequestMessage>(new HttpRequestMessagePooledObjectPolicy());
 
     public override void Configure()
     {
@@ -48,38 +46,34 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 return;
             }
 
-            var hostValue = hostStats.Host;
-            var originalUrl = HttpContext.Request.GetDisplayUrl();
-            var uri = new Uri(originalUrl);
-            var pathAndQuery = uri.PathAndQuery;
-            
-            var urlLength = "http://".Length + hostValue.Length + 1 + port.Length + pathAndQuery.Length;
-            var targetUrl = BuildTargetUrl(urlLength, hostValue, port, pathAndQuery);
-            
-            requestMessage = RequestPool.Get();
-            requestMessage.Method = new HttpMethod(HttpContext.Request.Method);
-            requestMessage.RequestUri = new Uri(targetUrl);
-            
+            requestMessage = new HttpRequestMessage
+            {
+                Method = new HttpMethod(HttpContext.Request.Method),
+                RequestUri = new Uri(BuildTargetUrl(hostStats.Host, port,
+                    new Uri(HttpContext.Request.GetDisplayUrl()).PathAndQuery))
+            };
+
             CopyHeaders(HttpContext.Request.Headers, requestMessage.Headers);
             if (HttpContext.Request.ContentLength > 0)
             {
                 requestMessage.Content = new StreamContent(HttpContext.Request.Body);
-                
+
                 if (HttpContext.Request.ContentType != null)
-                    requestMessage.Content.Headers.TryAddWithoutValidation("Content-Type", HttpContext.Request.ContentType);
+                    requestMessage.Content.Headers.TryAddWithoutValidation("Content-Type",
+                        HttpContext.Request.ContentType);
             }
-            
+
             var client = httpClientFactory.CreateClient("ReverseProxyClient");
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
-            
+
             using var response = await client.SendAsync(
-                requestMessage, 
-                HttpCompletionOption.ResponseHeadersRead, 
+                requestMessage,
+                HttpCompletionOption.ResponseHeadersRead,
                 timeoutCts.Token).ConfigureAwait(false);
-            
+
             HttpContext.Response.StatusCode = (int)response.StatusCode;
-            
+
             CopyHeaders(response.Headers, HttpContext.Response.Headers);
             CopyHeaders(response.Content.Headers, HttpContext.Response.Headers);
 
@@ -91,29 +85,25 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         }
         finally
         {
-            if (requestMessage != null)
-            {
-                requestMessage.Content?.Dispose();
-                requestMessage.Content = null;
-                RequestPool.Return(requestMessage);
-            }
+            requestMessage?.Dispose();
         }
     }
 
-    private static string BuildTargetUrl(int urlLength, string hostValue, string port, string pathAndQuery)
+    private static string BuildTargetUrl(string hostValue, string port, string pathAndQuery)
     {
-        return string.Create(urlLength, (hostValue, port, pathAndQuery), (span, state) =>
-        {
-            var position = 0;
-            "http://".AsSpan().CopyTo(span);
-            position += "http://".Length;
-            state.hostValue.AsSpan().CopyTo(span[position..]);
-            position += state.hostValue.Length;
-            span[position++] = ':';
-            state.port.AsSpan().CopyTo(span[position..]);
-            position += state.port.Length;
-            state.pathAndQuery.AsSpan().CopyTo(span[position..]);
-        });
+        return string.Create("http://".Length + hostValue.Length + 1 + port.Length + pathAndQuery.Length,
+            (hostValue, port, pathAndQuery), (span, state) =>
+            {
+                var position = 0;
+                "http://".AsSpan().CopyTo(span);
+                position += "http://".Length;
+                state.hostValue.AsSpan().CopyTo(span[position..]);
+                position += state.hostValue.Length;
+                span[position++] = ':';
+                state.port.AsSpan().CopyTo(span[position..]);
+                position += state.port.Length;
+                state.pathAndQuery.AsSpan().CopyTo(span[position..]);
+            });
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -121,7 +111,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
     {
         foreach (var header in source)
         {
-            if (header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase) || 
+            if (header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase) ||
                 header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -139,25 +129,9 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         {
             if (header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
                 continue;
-            
+
             var values = header.Value.AsValueEnumerable().ToArray();
             destination[header.Key] = values.Length == 1 ? values[0] : values;
         }
-    }
-}
-
-
-internal class HttpRequestMessagePooledObjectPolicy : PooledObjectPolicy<HttpRequestMessage>
-{
-    public override HttpRequestMessage Create() => new();
-
-    public override bool Return(HttpRequestMessage obj)
-    {
-        obj.Content?.Dispose();
-        obj.Content = null;
-        obj.RequestUri = null;
-        obj.Method = HttpMethod.Get;
-        obj.Headers.Clear();
-        return true;
     }
 }
