@@ -7,9 +7,9 @@ using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public record struct ReverseProxyRequest
+public record struct ReverseProxyRequest()
 {
-    public string CatchAll { get; set; }
+    public string CatchAll { get; set; } = string.Empty;
 }
 
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
@@ -85,9 +85,9 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
 
             await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token).ConfigureAwait(false);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            await SendOkAsync(cancellation: ct);
+            await SendOkAsync(ex.Message, cancellation: ct);
         }
         finally
         {
