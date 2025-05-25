@@ -7,6 +7,12 @@ const int maxConcurrent = 80000;
 const int requestTimeoutSeconds = 500;
 
 var builder = WebApplication.CreateBuilder(args);
+const int workerThreads = 16 * 4;
+const int ioThreads = 16 * 4;
+const int completionPortThreads = 16 * 8;
+
+ThreadPool.SetMinThreads(workerThreads, ioThreads);
+ThreadPool.SetMaxThreads(workerThreads * 2, completionPortThreads * 2);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -16,6 +22,8 @@ builder.WebHost.ConfigureKestrel(options =>
     options.AddServerHeader = false;
     options.Limits.MaxConcurrentConnections = maxConcurrent;
     options.Limits.MaxConcurrentUpgradedConnections = maxConcurrent;
+    options.Limits.MinResponseDataRate = null;
+    options.Limits.MinRequestBodyDataRate = null;
 });
 
 builder.Services.AddSingleton(_ => new ClusterOverviewService());
@@ -34,7 +42,9 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         KeepAlivePingTimeout = TimeSpan.FromSeconds(requestTimeoutSeconds),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
         EnableMultipleHttp2Connections = false,
-        MaxConnectionsPerServer = maxConcurrent
+        MaxConnectionsPerServer = maxConcurrent,
+        UseCookies = false,
+        UseProxy = false
     });
 
 var app = builder.Build();
