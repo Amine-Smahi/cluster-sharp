@@ -3,7 +3,7 @@ using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
 
-const int maxConcurrent = 8000;
+const int maxConcurrent = 80000;
 const int requestTimeoutSeconds = 5;
 
 var builder = WebApplication.CreateBuilder(args);
