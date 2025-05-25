@@ -7,9 +7,9 @@ const int maxConcurrent = 80000;
 const int requestTimeoutSeconds = 500;
 
 var builder = WebApplication.CreateBuilder(args);
-const int workerThreads = 16 * 16;
-const int ioThreads = 16 * 16;
-const int completionPortThreads = 16 * 16;
+const int workerThreads = 16 * 4;
+const int ioThreads = 16 * 4;
+const int completionPortThreads = 16 * 8;
 
 ThreadPool.SetMinThreads(workerThreads, ioThreads);
 ThreadPool.SetMaxThreads(workerThreads * 32, completionPortThreads * 32);
