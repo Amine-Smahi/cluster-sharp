@@ -3,7 +3,7 @@ using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
 
-const int maxConcurrent = 100000;
+const int maxConcurrent = 5000;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options =>
