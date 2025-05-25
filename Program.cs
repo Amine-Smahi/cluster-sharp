@@ -3,13 +3,13 @@ using ClusterSharp.Api.Services;
 using FastEndpoints;
 using ClusterSharp.Api.Helpers;
 
-const int maxConcurrent = 5000;
+const int maxConcurrent = 50000;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
-    options.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(1);
+    options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(5);
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(5);
     options.AllowSynchronousIO = false;
     options.AddServerHeader = false;
     options.Limits.MaxConcurrentConnections = maxConcurrent;
@@ -28,8 +28,8 @@ builder.Services.AddFastEndpoints(options => options.SourceGeneratorDiscoveredTy
 builder.Services.AddHttpClient("ReverseProxyClient")
     .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
     {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(15),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+        PooledConnectionLifetime = TimeSpan.FromSeconds(5),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(5),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
         EnableMultipleHttp2Connections = true,
         MaxConnectionsPerServer = maxConcurrent
