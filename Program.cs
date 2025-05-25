@@ -33,7 +33,7 @@ builder.Services.AddHttpClient("ReverseProxyClient")
         PooledConnectionLifetime = TimeSpan.FromSeconds(requestTimeoutSeconds),
         KeepAlivePingTimeout = TimeSpan.FromSeconds(requestTimeoutSeconds),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
-        EnableMultipleHttp2Connections = true,
+        EnableMultipleHttp2Connections = false,
         MaxConnectionsPerServer = maxConcurrent
     });
 
