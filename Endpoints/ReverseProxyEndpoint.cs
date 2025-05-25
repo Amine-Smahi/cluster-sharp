@@ -8,6 +8,8 @@ namespace ClusterSharp.Api.Endpoints;
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
     : EndpointWithoutRequest
 {
+    private const int RequestTimeoutSeconds = 5;
+
     public override void Configure()
     {
         AllowAnonymous();
@@ -59,7 +61,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             }
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(1));
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
 
             using var response = await httpClientFactory.CreateClient("ReverseProxyClient")
                 .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
@@ -74,7 +76,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"error => {ex.Message}");
             HttpContext.Abort();
            // HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
            // await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
