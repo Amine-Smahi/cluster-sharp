@@ -12,7 +12,7 @@ const int ioThreads = 16 * 4;
 const int completionPortThreads = 16 * 8;
 
 ThreadPool.SetMinThreads(workerThreads, ioThreads);
-ThreadPool.SetMaxThreads(workerThreads * 2, completionPortThreads * 2);
+ThreadPool.SetMaxThreads(workerThreads * 8, completionPortThreads * 8);
 
 builder.WebHost.ConfigureKestrel(options =>
 {
