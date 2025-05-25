@@ -8,7 +8,7 @@ namespace ClusterSharp.Api.Endpoints;
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
     : EndpointWithoutRequest
 {
-    private const int RequestTimeoutSeconds = 60;
+    private const int RequestTimeoutSeconds = 120;
     private static int _currentHostIndex = -1;
 
     public override void Configure()
