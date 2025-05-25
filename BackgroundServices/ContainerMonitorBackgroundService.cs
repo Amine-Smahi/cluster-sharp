@@ -10,7 +10,7 @@ public class ContainerMonitorBackgroundService(
     ClusterOverviewService clusterOverviewService)
     : BackgroundService
 {
-    private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _successInterval = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _errorInterval = TimeSpan.FromSeconds(60);
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
@@ -21,7 +21,6 @@ public class ContainerMonitorBackgroundService(
             try
             {
                 await _semaphore.WaitAsync(stoppingToken);
-                
                 try
                 {
                     var cluster = ClusterHelper.GetClusterSetup();
@@ -31,24 +30,24 @@ public class ContainerMonitorBackgroundService(
                         await Task.Delay(_errorInterval, stoppingToken);
                         continue;
                     }
-                    
+
                     var nodeProcessingTasks = cluster.Nodes
                         .AsValueEnumerable()
                         .Select(x => x.Hostname)
                         .Select(ProcessNodeAsync)
                         .ToList();
-                    
+
                     var processedNodes = await Task.WhenAll(nodeProcessingTasks);
-                    
+
                     var clusterInfo = processedNodes.AsValueEnumerable().Where(node => node != null).ToList();
-                    
-                    if(clusterInfo.Count == 0)
+
+                    if (clusterInfo.Count == 0)
                     {
                         Console.WriteLine("No container stats retrieved.");
                         await Task.Delay(_errorInterval, stoppingToken);
                         continue;
                     }
-                    
+
                     FileHelper.SetContentToFile("Assets/container-info.json", clusterInfo, out var errorMessage);
                     if (errorMessage != null)
                     {
@@ -70,7 +69,7 @@ public class ContainerMonitorBackgroundService(
             }
         }
     }
-    
+
     private static async Task<Node?> ProcessNodeAsync(string worker)
     {
         return await Task.Run(() => {

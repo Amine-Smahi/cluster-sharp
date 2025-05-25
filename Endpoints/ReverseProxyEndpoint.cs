@@ -1,21 +1,13 @@
 using FastEndpoints;
 using ClusterSharp.Api.Services;
-using Microsoft.AspNetCore.Http.Extensions;
 using System.Runtime.CompilerServices;
 using ZLinq;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public record struct ReverseProxyRequest()
-{
-    public string CatchAll { get; set; } = string.Empty;
-}
-
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
-    : Endpoint<ReverseProxyRequest>
+    : EndpointWithoutRequest
 {
-    private static readonly Random Random = new();
-
     public override void Configure()
     {
         AllowAnonymous();
@@ -24,7 +16,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         Options(b => b.WithOrder(int.MaxValue));
     }
 
-    public override async Task HandleAsync(ReverseProxyRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
         HttpRequestMessage? requestMessage = null;
         try
@@ -36,7 +28,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 return;
             }
 
-            var hostIndex = Random.Next(0, container.ContainerOnHostStatsList.Count);
+            var hostIndex = Random.Shared.Next(0, container.ContainerOnHostStatsList.Count);
             var hostStats = container.ContainerOnHostStatsList[hostIndex];
             var port = container.ExternalPort;
 
@@ -46,31 +38,32 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 return;
             }
 
+            var currentRequest = HttpContext.Request;
+            var pathAndQuery = currentRequest.Path.ToUriComponent() + currentRequest.QueryString.ToUriComponent();
+            var targetUri = new Uri($"http://{hostStats.Host}:{port}{pathAndQuery}");
+
             requestMessage = new HttpRequestMessage
             {
-                Method = new HttpMethod(HttpContext.Request.Method),
-                RequestUri = new Uri(BuildTargetUrl(hostStats.Host, port,
-                    new Uri(HttpContext.Request.GetDisplayUrl()).PathAndQuery))
+                Method = new HttpMethod(currentRequest.Method),
+                RequestUri = targetUri
             };
 
-            CopyHeaders(HttpContext.Request.Headers, requestMessage.Headers);
-            if (HttpContext.Request.ContentLength > 0)
+            CopyHeaders(currentRequest.Headers, requestMessage.Headers);
+            if (currentRequest.ContentLength > 0)
             {
-                requestMessage.Content = new StreamContent(HttpContext.Request.Body);
+                requestMessage.Content = new StreamContent(currentRequest.Body);
 
-                if (HttpContext.Request.ContentType != null)
+                if (currentRequest.ContentType != null)
                     requestMessage.Content.Headers.TryAddWithoutValidation("Content-Type",
-                        HttpContext.Request.ContentType);
+                        currentRequest.ContentType);
             }
 
-            var client = httpClientFactory.CreateClient("ReverseProxyClient");
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
 
-            using var response = await client.SendAsync(
-                requestMessage,
-                HttpCompletionOption.ResponseHeadersRead,
-                timeoutCts.Token).ConfigureAwait(false);
+            using var response = await httpClientFactory.CreateClient("ReverseProxyClient")
+                .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
+                .ConfigureAwait(false);
 
             HttpContext.Response.StatusCode = (int)response.StatusCode;
 
@@ -79,32 +72,15 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
 
             await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch
         {
             HttpContext.Response.StatusCode = StatusCodes.Status200OK;
-            await HttpContext.Response.WriteAsync(ex.Message, ct);
+            await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
         }
         finally
         {
             requestMessage?.Dispose();
         }
-    }
-
-    private static string BuildTargetUrl(string hostValue, string port, string pathAndQuery)
-    {
-        return string.Create("http://".Length + hostValue.Length + 1 + port.Length + pathAndQuery.Length,
-            (hostValue, port, pathAndQuery), (span, state) =>
-            {
-                var position = 0;
-                "http://".AsSpan().CopyTo(span);
-                position += "http://".Length;
-                state.hostValue.AsSpan().CopyTo(span[position..]);
-                position += state.hostValue.Length;
-                span[position++] = ':';
-                state.port.AsSpan().CopyTo(span[position..]);
-                position += state.port.Length;
-                state.pathAndQuery.AsSpan().CopyTo(span[position..]);
-            });
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -116,10 +92,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 header.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            if (header.Value.Count == 1)
-                destination.TryAddWithoutValidation(header.Key, header.Value[0]);
-            else
-                destination.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+            destination.TryAddWithoutValidation(header.Key, (IEnumerable<string>)header.Value);
         }
     }
 

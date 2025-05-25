@@ -110,7 +110,7 @@ public class DashboardEndpoint(ClusterOverviewService overviewService) : Endpoin
         }}
     </style>
 </head>
-<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
+<body class='h-100 p-3 fs-6' hx-get='/dashboard' hx-trigger='every 1.5s' hx-swap='outerHTML' hx-on:after-swap='initCharts()'>        
     <div class='container-fluid h-100'>
         <div class='row mb-4'>
             <div class='col-12'>

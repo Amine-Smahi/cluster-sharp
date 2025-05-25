@@ -1,4 +1,5 @@
 bin/
 obj/
-__pycache__/
+__pycache
 test.py
+.idea/
