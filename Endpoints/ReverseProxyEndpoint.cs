@@ -72,8 +72,9 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
 
             await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token).ConfigureAwait(false);
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine(ex.Message);
             HttpContext.Response.StatusCode = StatusCodes.Status200OK;
             await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
         }
