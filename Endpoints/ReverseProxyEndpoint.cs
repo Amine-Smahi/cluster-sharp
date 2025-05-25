@@ -8,7 +8,7 @@ namespace ClusterSharp.Api.Endpoints;
 public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
     : EndpointWithoutRequest
 {
-    private const int RequestTimeoutSeconds = 10;
+    private const int RequestTimeoutSeconds = 60;
 
     public override void Configure()
     {
@@ -80,7 +80,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"error => {ex.Message}");
+            Console.WriteLine($"error => {ex}");
             HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
         }
