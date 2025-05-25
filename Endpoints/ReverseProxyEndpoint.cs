@@ -74,13 +74,15 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
 
             await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            HttpContext.Abort();
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"error => {ex.Message}");
-            HttpContext.Abort();
-           // HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-           // await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
-            
+            HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
         }
         finally
         {
