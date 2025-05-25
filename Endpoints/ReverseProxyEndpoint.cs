@@ -9,6 +9,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
     : EndpointWithoutRequest
 {
     private const int RequestTimeoutSeconds = 60;
+    private static int _currentHostIndex = -1;
 
     public override void Configure()
     {
@@ -24,14 +25,14 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
         try
         {
             var container = overviewService.Overview.GetContainerForDomain(HttpContext.Request.Host.Value);
-            if (container == null)
+            if (container == null || container.ContainerOnHostStatsList.Count == 0)
             {
                 await SendNotFoundAsync(ct);
                 return;
             }
 
-            var hostIndex = Random.Shared.Next(0, container.ContainerOnHostStatsList.Count);
-            var hostStats = container.ContainerOnHostStatsList[hostIndex];
+            _currentHostIndex = (_currentHostIndex + 1) % container.ContainerOnHostStatsList.Count;
+            var hostStats = container.ContainerOnHostStatsList[_currentHostIndex];
             var port = container.ExternalPort;
 
             if (string.IsNullOrEmpty(port))
