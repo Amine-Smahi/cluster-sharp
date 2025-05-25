@@ -59,7 +59,7 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
             }
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(1));
 
             using var response = await httpClientFactory.CreateClient("ReverseProxyClient")
                 .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
