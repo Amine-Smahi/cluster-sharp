@@ -2,14 +2,24 @@ using FastEndpoints;
 using ClusterSharp.Api.Services;
 using System.Runtime.CompilerServices;
 using ZLinq;
+using Yarp.ReverseProxy.Forwarder;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpClientFactory httpClientFactory)
+public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpForwarder forwarder)
     : EndpointWithoutRequest
 {
     private const int RequestTimeoutSeconds = 120;
-    private static int _currentHostIndex = -1;
+    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromSeconds(RequestTimeoutSeconds),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds),
+        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
+        EnableMultipleHttp2Connections = false, // Considering we are proxying to HTTP/1.1 services usually
+        MaxConnectionsPerServer = 80000, // High throughput
+        UseCookies = false,
+        UseProxy = false
+    });
 
     public override void Configure()
     {
@@ -21,7 +31,6 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        HttpRequestMessage? requestMessage = null;
         try
         {
             var container = overviewService.Overview.GetContainerForDomain(HttpContext.Request.Host.Value);
@@ -31,8 +40,8 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 return;
             }
 
-            _currentHostIndex = (_currentHostIndex + 1) % container.ContainerOnHostStatsList.Count;
-            var hostStats = container.ContainerOnHostStatsList[_currentHostIndex];
+            // Simple round-robin for now, YARP will handle load balancing
+            var hostStats = container.ContainerOnHostStatsList[Random.Shared.Next(container.ContainerOnHostStatsList.Count)];
             var port = container.ExternalPort;
 
             if (string.IsNullOrEmpty(port))
@@ -41,53 +50,30 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpC
                 return;
             }
 
-            var currentRequest = HttpContext.Request;
-            var pathAndQuery = currentRequest.Path.ToUriComponent() + currentRequest.QueryString.ToUriComponent();
-            var targetUri = new Uri($"http://{hostStats.Host}:{port}{pathAndQuery}");
-
-            requestMessage = new HttpRequestMessage
+            var destinationPrefix = $"http://{hostStats.Host}:{port}";
+            
+            var error = await forwarder.SendAsync(HttpContext, destinationPrefix, _httpClient, new ForwarderRequestConfig { ActivityTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) }, HttpTransformer.Default, ct);
+            if (error != ForwarderError.None)
             {
-                Method = new HttpMethod(currentRequest.Method),
-                RequestUri = targetUri
-            };
-
-            CopyHeaders(currentRequest.Headers, requestMessage.Headers);
-            if (currentRequest.ContentLength > 0)
-            {
-                requestMessage.Content = new StreamContent(currentRequest.Body);
-
-                if (currentRequest.ContentType != null)
-                    requestMessage.Content.Headers.TryAddWithoutValidation("Content-Type",
-                        currentRequest.ContentType);
+                // Log error
+                Console.WriteLine($"YARP forwarding error: {error}");
+                HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
             }
-
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(RequestTimeoutSeconds));
-
-            using var response = await httpClientFactory.CreateClient("ReverseProxyClient")
-                .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
-                .ConfigureAwait(false);
-
-            HttpContext.Response.StatusCode = (int)response.StatusCode;
-
-            CopyHeaders(response.Headers, HttpContext.Response.Headers);
-            CopyHeaders(response.Content.Headers, HttpContext.Response.Headers);
-
-            await response.Content.CopyToAsync(HttpContext.Response.Body, timeoutCts.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
-            HttpContext.Abort();
+            // Handled by YARP
+            if (!ct.IsCancellationRequested) // If not client cancellation
+            {
+                HttpContext.Abort();
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"error => {ex}");
             HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
             await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
-        }
-        finally
-        {
-            requestMessage?.Dispose();
         }
     }
 

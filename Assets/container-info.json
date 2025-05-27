@@ -11,7 +11,7 @@
       {
         "Name": "neo-amine.com",
         "Cpu": 0,
-        "Memory": 0.05,
+        "Memory": 0.14,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
       }
@@ -29,7 +29,7 @@
       {
         "Name": "neo-amine.com",
         "Cpu": 0,
-        "Memory": 0.05,
+        "Memory": 0.14,
         "Disk": "0B (virtual 14.5MB)",
         "external_port": "8080"
       }
