@@ -61,6 +61,11 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpF
                 HttpContext.Abort();
             }
         }
+        catch (HttpRequestException)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status502BadGateway;
+            await HttpContext.Response.WriteAsync("Bad Gateway: Unable to forward the request.", ct);
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"error => {ex}");
