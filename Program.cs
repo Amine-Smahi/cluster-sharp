@@ -29,5 +29,6 @@ ClusterHelper.Initialize(app.Services);
 app.Lifetime.ApplicationStopping.Register(SshHelper.CloseAllConnections);
 
 app.UseRouting();
+app.UseFastEndpoints();
 
 app.Run("http://0.0.0.0:80");
