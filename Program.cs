@@ -22,6 +22,24 @@ builder.Services.AddFastEndpoints(options => options.SourceGeneratorDiscoveredTy
 
 builder.Services.AddReverseProxy();
 
+const int forwarderRequestTimeoutSeconds = 120;
+const int maxConnectionsPerServer = 80000;
+
+builder.Services.AddHttpClient("YarpForwarderClient", client =>
+{
+    // Optional: configure default request headers or other client-wide settings here
+})
+.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    PooledConnectionLifetime = TimeSpan.FromSeconds(forwarderRequestTimeoutSeconds),
+    KeepAlivePingTimeout = TimeSpan.FromSeconds(forwarderRequestTimeoutSeconds),
+    KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
+    EnableMultipleHttp2Connections = false,
+    MaxConnectionsPerServer = maxConnectionsPerServer,
+    UseCookies = false,
+    UseProxy = false
+});
+
 var app = builder.Build();
 
 ClusterHelper.Initialize(app.Services);

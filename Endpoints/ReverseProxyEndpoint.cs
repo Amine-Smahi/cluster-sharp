@@ -6,20 +6,10 @@ using Yarp.ReverseProxy.Forwarder;
 
 namespace ClusterSharp.Api.Endpoints;
 
-public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpForwarder forwarder)
+public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpForwarder forwarder, IHttpClientFactory httpClientFactory)
     : EndpointWithoutRequest
 {
     private const int RequestTimeoutSeconds = 120;
-    private static readonly HttpClient _httpClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromSeconds(RequestTimeoutSeconds),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds),
-        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always,
-        EnableMultipleHttp2Connections = false, // Considering we are proxying to HTTP/1.1 services usually
-        MaxConnectionsPerServer = 80000, // High throughput
-        UseCookies = false,
-        UseProxy = false
-    });
 
     public override void Configure()
     {
@@ -52,10 +42,10 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpF
 
             var destinationPrefix = $"http://{hostStats.Host}:{port}";
             
-            var error = await forwarder.SendAsync(HttpContext, destinationPrefix, _httpClient, new ForwarderRequestConfig { ActivityTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) }, HttpTransformer.Default, ct);
+            var httpClient = httpClientFactory.CreateClient("YarpForwarderClient");
+            var error = await forwarder.SendAsync(HttpContext, destinationPrefix, httpClient, new ForwarderRequestConfig { ActivityTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) }, HttpTransformer.Default, ct);
             if (error != ForwarderError.None)
             {
-                // Log error
                 Console.WriteLine($"YARP forwarding error: {error}");
                 HttpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
                 await HttpContext.Response.WriteAsync("An error occurred while proxying the request.", ct);
@@ -63,7 +53,6 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpF
         }
         catch (OperationCanceledException)
         {
-            // Handled by YARP
             if (!ct.IsCancellationRequested) // If not client cancellation
             {
                 HttpContext.Abort();
