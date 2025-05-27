@@ -43,8 +43,10 @@ public class ReverseProxyEndpoint(ClusterOverviewService overviewService, IHttpF
             var destinationPrefix = $"http://{hostStats.Host}:{port}";
             
             var httpClient = httpClientFactory.CreateClient("YarpForwarderClient");
+            var handler = new HttpClientHandler();
+            var httpMessageInvoker = new HttpMessageInvoker(handler);
             var requestConfig = new ForwarderRequestConfig { ActivityTimeout = TimeSpan.FromSeconds(RequestTimeoutSeconds) };
-            var error = await forwarder.SendAsync(HttpContext, destinationPrefix, httpClient, requestConfig, HttpTransformer.Default, ct);
+            var error = await forwarder.SendAsync(HttpContext, destinationPrefix, httpMessageInvoker, requestConfig, HttpTransformer.Default, ct);
             if (error != ForwarderError.None)
             {
                 Console.WriteLine($"YARP forwarding error: {error}");
